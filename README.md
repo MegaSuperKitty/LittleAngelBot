@@ -4,7 +4,7 @@
   <h1>LittleAngelBot: A Personal Assistant Powered by Mobile QQ and Windows PC Collaboration</h1>
   <p>
     <img src="https://img.shields.io/badge/python-≥3.11-blue" alt="Python">
-    <img src="https://img.shields.io/badge/license-Apache--2.0-green" alt="License">
+    <img src="https://img.shields.io/badge/license-MIT-green" alt="License">
     <a href="./COMMUNICATION.md"><img src="https://img.shields.io/badge/WeChat-Group-C5EAB4?style=flat&logo=wechat&logoColor=white" alt="WeChat"></a>
   </p>
 </div>
@@ -109,4 +109,4 @@ python entry_qq.py
 
 ## 许可证
 
-Apache-2.0
+MIT
