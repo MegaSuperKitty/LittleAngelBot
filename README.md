@@ -2,7 +2,7 @@
 
 ![LittleAngelBot Logo](docs/logo.png)
 
-国产版 OpenClaw 跨端个人助手 Agent。面向 Windows 电脑设计，打通手机端 QQ 与 Windows 端能力，让用户通过自然语言实现跨端自动规划与执行任务的闭环。
+首个国产版 OpenClaw 跨端个人助手 Agent。面向 Windows 电脑设计，打通手机端 QQ 与 Windows 端能力，让用户通过自然语言实现跨端自动规划与执行任务的闭环。
 
 ## 核心亮点
 
@@ -46,12 +46,11 @@
 - `BOTPY_SECRET`（QQ 入口需要）
 - `LITTLE_ANGEL_AGENT_WORKSPACE`（可选，`agent_workspace` 路径）
 
-### 本地测试密钥（可选）
+### 本地使用密钥
 
-为了方便本地测试，可以在项目根目录创建 `local_secrets.yaml`：
+请在项目根目录创建 `local_secrets.yaml`，并填写密钥：
 
 ```yaml
-BRAVE_API_KEY: ""
 ZHIPU_API_KEY: ""
 DASHSCOPE_API_KEY: ""
 BOTPY_APPID: ""
