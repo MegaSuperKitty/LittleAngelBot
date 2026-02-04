@@ -39,7 +39,7 @@
     <td align="center"><p align="center"><img src="docs/Report.gif" width="180" height="400"></p></td>
     <td align="center"><p align="center"><img src="docs/StayHydrated.gif" width="180" height="400"></p></td>
     <td align="center"><p align="center"><img src="docs/GenerateSkills.gif" width="180" height="400"></p></td>
-    <td align="center"><p align="center"><img src="docs/GenerateSkills.gif" width="180" height="400"></p></td>
+    <td align="center"><p align="center"><img src="docs/Coding.gif" width="180" height="400"></p></td>
   </tr>
 </table>
 
