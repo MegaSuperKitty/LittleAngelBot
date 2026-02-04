@@ -1,0 +1,11 @@
+openai
+botpy
+python-pptx
+weasyprint
+reportlab
+pypdf
+pdf2image
+pillow
+jinja2
+markdown
+pyyaml

@@ -1,0 +1,4 @@
+interface:
+  display_name: "PPTX Auto (Windows)"
+  short_description: "Generate PPTX with Python and optional HTML-to-PDF workflow"
+  default_prompt: "Create a PPTX on Windows using Python and bash, optionally rendering HTML to PDF before building slides. Ask for slide outline, theme, and assets, then generate the deck."

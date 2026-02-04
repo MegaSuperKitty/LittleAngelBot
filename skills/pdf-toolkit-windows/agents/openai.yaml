@@ -1,0 +1,4 @@
+interface:
+  display_name: "PDF Toolkit (Windows)"
+  short_description: "Manipulate PDFs: merge, split, extract, stamp, rotate"
+  default_prompt: "Perform PDF operations on Windows using Python. Ask for input files, desired operation, and output path, then execute safely."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Report HTML (Windows)"
+  short_description: "Build report HTML from outline/markdown using Python"
+  default_prompt: "Create a report on Windows and output HTML by default. Ask for outline, sections, tone, branding, and sources. Ensure inline citations and a references section."

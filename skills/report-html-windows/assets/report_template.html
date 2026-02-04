@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>{{ title }}</title>
+  <style>
+    :root { --accent: {{ accent }}; }
+    body { font-family: Arial, sans-serif; margin: 40px; color: #111; }
+    h1, h2, h3 { color: var(--accent); }
+    .title { border-bottom: 2px solid var(--accent); margin-bottom: 24px; padding-bottom: 8px; }
+    .logo { max-height: 60px; }
+  </style>
+</head>
+<body>
+  <div class="title">
+    {% if logo_path %}<img class="logo" src="{{ logo_path }}" />{% endif %}
+    <h1>{{ title }}</h1>
+  </div>
+  <div class="content">
+    {{ body | safe }}
+  </div>
+</body>
+</html>
