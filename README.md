@@ -1,8 +1,18 @@
-# LittleAngelBot
-
 ![LittleAngelBot Logo](docs/logo.png)
 
+<div align="center">
+  <h1>LittleAngelBot: A Personal Assistant Powered by Mobile QQ and Windows PC Collaboration</h1>
+  <p>
+    <img src="https://img.shields.io/badge/python-≥3.11-blue" alt="Python">
+    <img src="https://img.shields.io/badge/license-Apache--2.0-green" alt="License">
+    <a href="./COMMUNICATION.md"><img src="https://img.shields.io/badge/WeChat-Group-C5EAB4?style=flat&logo=wechat&logoColor=white" alt="WeChat"></a>
+  </p>
+</div>
+
 首个国产版 OpenClaw 跨端个人助手 Agent。面向 Windows 电脑设计，打通手机端 QQ 与 Windows 端能力，让用户通过自然语言实现跨端自动规划与执行任务的闭环。
+
+## 时间线
+- **2026-02-03** 🎉 小天使🪽智能体开源啦，欢迎使用!
 
 ## 核心亮点
 
@@ -18,7 +28,20 @@
 
 ## 演示动图
 
-![演示动图](docs/demo.gif)
+<table align="center">
+  <tr align="center">
+    <th><p align="center">🔎 信息搜集与报告生成</p></th>
+    <th><p align="center">⏰ 定时任务与自动化执行</p></th>
+    <th><p align="center">🧩 Skills自动创建</p></th>
+    <th><p align="center">💻 编程与远程执行</p></th>
+  </tr>
+  <tr>
+    <td align="center"><p align="center"><img src="docs/Report.gif" width="180" height="400"></p></td>
+    <td align="center"><p align="center"><img src="docs/StayHydrated.gif" width="180" height="400"></p></td>
+    <td align="center"><p align="center"><img src="docs/GenerateSkills.gif" width="180" height="400"></p></td>
+    <td align="center"><p align="center"><img src="docs/GenerateSkills.gif" width="180" height="400"></p></td>
+  </tr>
+</table>
 
 ## 能力概览
 
@@ -36,15 +59,13 @@
 
 ## 运行前准备
 
-建议使用环境变量配置密钥与运行参数。
-
 环境变量：
 - `BRAVE_API_KEY`（可选）
 - `ZHIPU_API_KEY`（可选）
 - `DASHSCOPE_API_KEY`（可选）
 - `BOTPY_APPID`（QQ 入口需要）
 - `BOTPY_SECRET`（QQ 入口需要）
-- `LITTLE_ANGEL_AGENT_WORKSPACE`（可选，`agent_workspace` 路径）
+- `LITTLE_ANGEL_AGENT_WORKSPACE`（可选，agent的工作路径）
 
 ### 本地使用密钥
 
@@ -57,7 +78,7 @@ BOTPY_APPID: ""
 BOTPY_SECRET: ""
 ```
 
-读取优先级：入口文件内的默认值 > 环境变量 > `local_secrets.yaml`。
+注意：QQ机器人的APPID和SECRET请前往腾讯QQ开放平台注册并创建机器人获得（https://q.qq.com/#/）
 
 ## 运行
 
@@ -75,13 +96,11 @@ python entry_qq.py
 
 ## 目录结构
 
-- `entry_cli.py`：CLI 入口（本地调试）
 - `entry_qq.py`：QQ 私聊入口
+- `entry_cli.py`：CLI 入口
 - `little_angel_bot.py`：机器人核心逻辑
 - `tools/`：工具能力
 - `skills/`：Skills 能力集成
-- `agent_workspace/`：运行产物与中间文件（建议忽略提交）
-
 ## 开发与扩展
 
 - 在 `skills/` 中添加或修改技能
