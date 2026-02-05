@@ -25,28 +25,17 @@ class SkillRegistry:
         self._cache = self._scan_skills()
 
     def list_skills(self) -> List[SkillMeta]:
-        if not self._cache:
-            self.refresh()
+        self.refresh()
         return [meta for meta, _ in self._cache.values()]
 
     def get_prompt(self, name: str) -> Optional[str]:
-        if not self._cache:
-            self.refresh()
+        self.refresh()
         item = self._cache.get(name)
-        if item is None:
-            # Refresh once to pick up newly added skills after startup.
-            self.refresh()
-            item = self._cache.get(name)
         return item[1] if item else None
 
     def get_meta(self, name: str) -> Optional[SkillMeta]:
-        if not self._cache:
-            self.refresh()
+        self.refresh()
         item = self._cache.get(name)
-        if item is None:
-            # Refresh once to pick up newly added skills after startup.
-            self.refresh()
-            item = self._cache.get(name)
         return item[0] if item else None
 
     def _scan_skills(self) -> Dict[str, Tuple[SkillMeta, str]]:
