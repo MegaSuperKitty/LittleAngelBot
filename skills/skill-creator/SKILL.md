@@ -229,6 +229,10 @@ To avoid overwhelming users, avoid asking too many questions in a single message
 
 Conclude this step when there is a clear sense of the functionality the skill should support.
 
+### Mandatory Interaction Gate
+
+**Assume the user is not a programmer. You must require clear goals and expected outputs. If the user is willing, ask for 1–3 realistic examples. Stop asking once you are confident you understand the requirements. For experiential or guidance-oriented details that you believe can be found online, you may collect them later via web search instead of over-questioning the user.**
+
 ### Step 2: Planning the Reusable Skill Contents
 
 To turn concrete examples into an effective skill, analyze each example by:

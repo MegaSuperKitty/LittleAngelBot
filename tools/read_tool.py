@@ -23,6 +23,8 @@ class ReadTool(Tool):
                     "start_line": {"type": "integer", "description": "Start line (1-based)."},
                     "end_line": {"type": "integer", "description": "End line (1-based)."},
                     "max_lines": {"type": "integer", "description": "Maximum lines to return (capped at 100)."},
+                    "start_char": {"type": "integer", "description": "Start character offset (0-based) across the whole file."},
+                    "max_chars": {"type": "integer", "description": "Maximum characters to return (capped at 9000)."},
                 },
                 "required": ["path"],
             },
@@ -33,8 +35,16 @@ class ReadTool(Tool):
         start_line = int(kwargs.get("start_line") or 1)
         end_line = kwargs.get("end_line")
         max_lines = int(kwargs.get("max_lines") or 200)
+        start_char = int(kwargs.get("start_char") or 0)
+        max_chars = int(kwargs.get("max_chars") or 4000)
         if max_lines > 100:
             max_lines = 100
+        if max_chars > 9000:
+            max_chars = 9000
+        if max_chars < 1:
+            max_chars = 1
+        if start_char < 0:
+            start_char = 0
         try:
             abs_path = resolve_relative_path(self._agent_root, path)
         except ValueError:
@@ -44,14 +54,43 @@ class ReadTool(Tool):
         if start_line < 1:
             start_line = 1
         lines = []
+        file_pos = 0
+        out_chars = 0
         with open(abs_path, "r", encoding="utf-8", errors="ignore") as f:
             for idx, line in enumerate(f, start=1):
+                line_len = len(line)
                 if idx < start_line:
+                    file_pos += line_len
                     continue
                 if end_line is not None and idx > int(end_line):
                     break
-                lines.append(f"{idx:>6}: {line.rstrip()}")
-                if len(lines) >= max_lines:
+                line_start = file_pos
+                line_end = file_pos + line_len
+                file_pos = line_end
+                if start_char >= line_end:
+                    continue
+
+                slice_start = 0
+                if start_char > line_start:
+                    slice_start = start_char - line_start
+
+                display_line = line.rstrip()
+                if slice_start >= len(display_line):
+                    continue
+                display_line = display_line[slice_start:]
+
+                prefix = f"{idx:>6}: "
+                remaining = max_chars - out_chars
+                if remaining <= len(prefix):
+                    break
+                available = remaining - len(prefix)
+                if len(display_line) > available:
+                    display_line = display_line[:available]
+
+                output_line = prefix + display_line
+                lines.append(output_line)
+                out_chars += len(output_line) + 1
+                if len(lines) >= max_lines or out_chars >= max_chars:
                     break
         if not lines:
             return "没有可展示的内容。"
