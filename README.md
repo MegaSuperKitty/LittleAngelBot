@@ -60,11 +60,11 @@
 ## 运行前准备
 
 环境变量：
-- `BRAVE_API_KEY`（可选）
-- `ZHIPU_API_KEY`（可选）
-- `DASHSCOPE_API_KEY`（可选）
-- `BOTPY_APPID`（QQ 入口需要）
-- `BOTPY_SECRET`（QQ 入口需要）
+- `BRAVE_API_KEY`（可选，用于网页搜索）
+- `ZHIPU_API_KEY`（可选，用于网页搜索）
+- `DASHSCOPE_API_KEY`（必填，用于调用Qwen模型）
+- `BOTPY_APPID`（必填，QQ 入口需要）
+- `BOTPY_SECRET`（必填，QQ 入口需要）
 - `LITTLE_ANGEL_AGENT_WORKSPACE`（可选，agent的工作路径）
 
 ### 本地使用密钥
