@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 """机器人入口：LittleAngelBot。"""
 import asyncio
 from collections import deque
@@ -14,6 +14,7 @@ from botpy import logging
 from botpy.message import C2CMessage
 
 from little_angel_bot import LittleAngelBot
+from llm_provider import validate_llm_config
 
 _LOG = logging.get_logger()
 
@@ -55,8 +56,14 @@ def _get_secret(name: str, fallback: str = "") -> str:
 BRAVE_API_KEY = _get_secret("BRAVE_API_KEY", "")
 # Example: ZHIPU_API_KEY = "your_zhipu_api_key"
 ZHIPU_API_KEY = _get_secret("ZHIPU_API_KEY", "")
-# Example: DASHSCOPE_API_KEY = "your_dashscope_api_key"
-DASHSCOPE_API_KEY = _get_secret("DASHSCOPE_API_KEY", "")
+# Example: LLM_API_KEY = "your_llm_api_key"
+LLM_API_KEY = _get_secret("LLM_API_KEY", "")
+# Example: LLM_BASE_URL = "https://api.openai.com/v1"
+LLM_BASE_URL = _get_secret("LLM_BASE_URL", "")
+# Example: LLM_MODEL = "gpt-4o-mini"
+LLM_MODEL = _get_secret("LLM_MODEL", "")
+# Example: LLM_PROVIDER = "openai|dashscope|siliconflow|anthropic"
+LLM_PROVIDER = _get_secret("LLM_PROVIDER", "")
 # Example: BOTPY_APPID = "your_bot_appid"
 BOTPY_APPID = _get_secret("BOTPY_APPID", "")
 # Example: BOTPY_SECRET = "your_bot_secret"
@@ -67,8 +74,14 @@ if BRAVE_API_KEY and not os.getenv("BRAVE_API_KEY"):
     os.environ["BRAVE_API_KEY"] = BRAVE_API_KEY
 if ZHIPU_API_KEY and not os.getenv("ZHIPU_API_KEY"):
     os.environ["ZHIPU_API_KEY"] = ZHIPU_API_KEY
-if DASHSCOPE_API_KEY and not os.getenv("DASHSCOPE_API_KEY"):
-    os.environ["DASHSCOPE_API_KEY"] = DASHSCOPE_API_KEY
+if LLM_API_KEY and not os.getenv("LLM_API_KEY"):
+    os.environ["LLM_API_KEY"] = LLM_API_KEY
+if LLM_BASE_URL and not os.getenv("LLM_BASE_URL"):
+    os.environ["LLM_BASE_URL"] = LLM_BASE_URL
+if LLM_MODEL and not os.getenv("LLM_MODEL"):
+    os.environ["LLM_MODEL"] = LLM_MODEL
+if LLM_PROVIDER and not os.getenv("LLM_PROVIDER"):
+    os.environ["LLM_PROVIDER"] = LLM_PROVIDER
 if BOTPY_APPID and not os.getenv("BOTPY_APPID"):
     os.environ["BOTPY_APPID"] = BOTPY_APPID
 if BOTPY_SECRET and not os.getenv("BOTPY_SECRET"):
@@ -437,6 +450,11 @@ class MyClient(botpy.Client):
 
 def main() -> None:
     """程序入口。"""
+    llm_error = validate_llm_config()
+    if llm_error:
+        print(f"LLM 配置不完整：{llm_error}。请至少设置 LLM_API_KEY。")
+        return
+
     appid = os.getenv("BOTPY_APPID", "").strip()
     secret = os.getenv("BOTPY_SECRET", "").strip()
     if not appid or not secret:

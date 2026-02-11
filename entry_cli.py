@@ -1,11 +1,14 @@
 # -*- coding: utf-8 -*-
 """CLI entry for LittleAngelBot (debug)."""
+
 import asyncio
 import os
 
 import yaml
 
 from little_angel_bot import LittleAngelBot
+from llm_provider import validate_llm_config
+
 
 BASE_DIR = os.path.dirname(__file__)
 HISTORY_DIR = os.path.join(BASE_DIR, "chat_history")
@@ -37,29 +40,31 @@ def _get_secret(name: str, fallback: str = "") -> str:
     local = _LOCAL_SECRETS.get(name, "")
     return "" if local is None else str(local)
 
+
 # === Optional local config (set and keep here for convenience) ===
-# Example: BRAVE_API_KEY = "your_brave_api_key"
 BRAVE_API_KEY = _get_secret("BRAVE_API_KEY", "")
-# Example: ZHIPU_API_KEY = "your_zhipu_api_key"
 ZHIPU_API_KEY = _get_secret("ZHIPU_API_KEY", "")
-# Example: DASHSCOPE_API_KEY = "your_dashscope_api_key"
-DASHSCOPE_API_KEY = _get_secret("DASHSCOPE_API_KEY", "")
-# Example: BOTPY_APPID = "your_bot_appid" (not used in debug)
+LLM_API_KEY = _get_secret("LLM_API_KEY", "")
+LLM_BASE_URL = _get_secret("LLM_BASE_URL", "")
+LLM_MODEL = _get_secret("LLM_MODEL", "")
+LLM_PROVIDER = _get_secret("LLM_PROVIDER", "")
 BOTPY_APPID = _get_secret("BOTPY_APPID", "")
-# Example: BOTPY_SECRET = "your_bot_secret" (not used in debug)
 BOTPY_SECRET = _get_secret("BOTPY_SECRET", "")
 
+
 # Push into env so tools can pick them up.
-if BRAVE_API_KEY and not os.getenv("BRAVE_API_KEY"):
-    os.environ["BRAVE_API_KEY"] = BRAVE_API_KEY
-if ZHIPU_API_KEY and not os.getenv("ZHIPU_API_KEY"):
-    os.environ["ZHIPU_API_KEY"] = ZHIPU_API_KEY
-if DASHSCOPE_API_KEY and not os.getenv("DASHSCOPE_API_KEY"):
-    os.environ["DASHSCOPE_API_KEY"] = DASHSCOPE_API_KEY
-if BOTPY_APPID and not os.getenv("BOTPY_APPID"):
-    os.environ["BOTPY_APPID"] = BOTPY_APPID
-if BOTPY_SECRET and not os.getenv("BOTPY_SECRET"):
-    os.environ["BOTPY_SECRET"] = BOTPY_SECRET
+for env_name, env_value in [
+    ("BRAVE_API_KEY", BRAVE_API_KEY),
+    ("ZHIPU_API_KEY", ZHIPU_API_KEY),
+    ("LLM_API_KEY", LLM_API_KEY),
+    ("LLM_BASE_URL", LLM_BASE_URL),
+    ("LLM_MODEL", LLM_MODEL),
+    ("LLM_PROVIDER", LLM_PROVIDER),
+    ("BOTPY_APPID", BOTPY_APPID),
+    ("BOTPY_SECRET", BOTPY_SECRET),
+]:
+    if env_value and not os.getenv(env_name):
+        os.environ[env_name] = env_value
 
 
 class _DebugState:
@@ -88,7 +93,7 @@ async def _run_task(bot: LittleAngelBot, user_id: str, content: str, state: _Deb
     if reply_text:
         print(f"Bot> {reply_text}")
         if state.pending_input:
-            print("Bot> 我现在任务完成了，我注意到你之前给我发了消息，但我都没有听见，你可以重新和我说一遍")
+            print("Bot> Task finished. I saw your earlier message; please send it again.")
             state.pending_input = False
 
 
@@ -112,11 +117,13 @@ async def main_async() -> None:
             print("Bye.")
             break
 
-        if not os.getenv("DASHSCOPE_API_KEY", "").strip():
-            print("需要先配置百炼 API Key，否则无法继续对话。")
+        llm_error = validate_llm_config()
+        if llm_error:
+            print(f"LLM config is incomplete: {llm_error}")
+            print("Please set LLM_API_KEY (required).")
             continue
         if not os.getenv("ZHIPU_API_KEY", "").strip():
-            print("当前未配置智谱 Key，暂时无法使用搜索引擎功能。")
+            print("ZHIPU_API_KEY not set, web search tool may be unavailable.")
 
         if state.running_task is not None and not state.running_task.done():
             if bot.has_pending_human(user_id):
@@ -133,9 +140,7 @@ async def main_async() -> None:
                 print("Bot> 已停止任务。")
             else:
                 state.pending_input = True
-                print(
-                    "Bot> 正在完成您给的任务，在任务完成或者失败前我都会捂住我的耳朵不听任何别的话，除非你显式的输入【停止任务】这4个字"
-                )
+                print("Bot> 正在执行当前任务。若要中断，请发送“停止任务”。")
             continue
 
         state.cancel_requested = False
