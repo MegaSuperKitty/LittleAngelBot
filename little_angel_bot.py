@@ -5,9 +5,10 @@ from typing import Optional
 import json
 import os
 
-from ReAct import ReActAgent, get_response
+from ReAct import ReActAgent
 from ReCAP import ReCAPAgent
 from context import ContextWindowManager, HistoryManager, LlmSummarizer
+from llm_provider import get_response
 from tools.bash_tool import BashTool
 from tools.edit_tool import EditTool
 from tools.glob_tool import GlobTool
@@ -321,4 +322,3 @@ class LittleAngelBot:
                 return json.load(f)
         except Exception:
             return {}
-

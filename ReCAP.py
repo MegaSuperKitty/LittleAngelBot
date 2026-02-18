@@ -6,8 +6,9 @@ from __future__ import annotations
 from typing import Dict, List, Optional, Tuple
 import json
 
-from ReAct import ReActAgent, get_response
+from ReAct import ReActAgent
 from context import ContextWindowManager
+from llm_provider import get_response
 
 
 class ReCAPAgent:

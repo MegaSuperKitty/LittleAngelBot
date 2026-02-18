@@ -11,7 +11,7 @@
 
 [中文 README](./README_zh.md)
 
-A cross-platform personal assistant agent inspired by OpenClaw, designed for Windows PCs. It bridges mobile QQ and Windows environments, enabling users to plan and execute tasks end-to-end across devices using natural language.
+A cross-platform personal assistant agent inspired by OpenClaw, designed for Windows PCs. It bridges mobile QQ and Windows capabilities so users can use natural language to plan and execute tasks end-to-end across devices.
 
 LittleAngelBot can also be accessed via a CLI, and can be customized to integrate with platforms such as WhatsApp, Discord, Telegram, and more.
 
@@ -68,9 +68,12 @@ You can direct the agent anytime, anywhere (on the subway, while traveling, or o
 
 Environment variables:
 
+- `LLM_API_KEY` (required, for model calls)
+- `LLM_BASE_URL` (optional; defaults are chosen by `LLM_PROVIDER`)
+- `LLM_MODEL` (optional; defaults are chosen by `LLM_PROVIDER`)
+- `LLM_PROVIDER` (optional, `openai|dashscope|siliconflow|anthropic`; can be auto-detected)
 - `BRAVE_API_KEY` (optional, for web search)
 - `ZHIPU_API_KEY` (optional, for web search)
-- `DASHSCOPE_API_KEY` (required, for Qwen model calls)
 - `BOTPY_APPID` (required, for QQ entry)
 - `BOTPY_SECRET` (required, for QQ entry)
 - `LITTLE_ANGEL_AGENT_WORKSPACE` (optional, workspace path for the agent)
@@ -80,8 +83,11 @@ Environment variables:
 Create `local_secrets.yaml` in the project root and fill in your keys:
 
 ```yaml
+LLM_API_KEY: ""
+LLM_BASE_URL: ""
+LLM_MODEL: ""
+LLM_PROVIDER: ""
 ZHIPU_API_KEY: ""
-DASHSCOPE_API_KEY: ""
 BOTPY_APPID: ""
 BOTPY_SECRET: ""
 ```

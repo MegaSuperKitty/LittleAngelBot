@@ -1,47 +1,11 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 """ReAct 代理与工具调用循环。"""
 
 from typing import Dict, List, Optional, Tuple
 from concurrent.futures import ThreadPoolExecutor
-import json
 import math
-import os
-from openai import OpenAI
 from context import ContextWindowManager
-
-
-def get_response(prompts, tools=None, key_word="", stream=False, on_token=None):
-    """调用 Qwen（DashScope 兼容）聊天模型。"""
-    # 当前实现不启用流式，保留 stream 形参以兼容调用方。
-    stream = False
-    client = _build_client()
-    payload = _build_payload(prompts, tools, key_word, stream)
-    response = client.chat.completions.create(**payload)
-    if not stream:
-        return response.choices[0].message
-
-
-def _build_client() -> OpenAI:
-    api_key = os.getenv("DASHSCOPE_API_KEY", "")
-    return OpenAI(
-        api_key=api_key,
-        base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
-    )
-
-
-def _build_payload(uml_prompts, tools, key_word: str, stream: bool) -> Dict:
-    payload = {
-        "model": "qwen3-max",
-        "messages": uml_prompts,
-        "stream": stream,
-        "temperature": 0.0,
-        "top_p": 0.1,
-        "tools": tools or [],
-        "tool_choice": "auto",
-    }
-    if key_word:
-        payload["stop"] = key_word
-    return payload
+from llm_provider import get_response
 
 
 class ReActAgent:
@@ -208,16 +172,24 @@ class ReActAgent:
         }
 
     def _extract_long_output_path(self, text: str) -> str:
-        marker = "超长被放到了（"
-        if marker not in text:
-            return ""
-        start = text.find(marker) + len(marker)
-        end = text.find("）", start)
-        if end == -1:
-            end = text.find(")", start)
-        if end == -1:
-            return ""
-        return text[start:end].strip()
+        legacy_marker = "超长被放到了（"
+        if legacy_marker in text:
+            start = text.find(legacy_marker) + len(legacy_marker)
+            end = text.find("）", start)
+            if end == -1:
+                end = text.find(")", start)
+            if end == -1:
+                return ""
+            return text[start:end].strip()
+
+        new_marker = "Tool output too long. Stored at: "
+        if new_marker in text:
+            start = text.find(new_marker) + len(new_marker)
+            end = text.find(".", start)
+            if end == -1:
+                end = len(text)
+            return text[start:end].strip()
+        return ""
 
     def _build_max_steps_reply(self, step_count: int, tool_call_count: int, tool_events: List[Dict[str, str]]) -> str:
         summary = self._build_progress_summary(tool_events, max_tokens=200)
