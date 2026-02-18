@@ -11,11 +11,11 @@
 
 [English README](./README.md)
 
-LittleAngelBot 是一个面向 Windows 场景的跨端个人助手 Agent，灵感来自 OpenClaw。它打通手机 QQ 与 Windows 端能力，让用户可以通过自然语言完成任务规划与端到端执行。
+首个国产版 OpenClaw 跨端个人助手 Agent。面向 Windows 电脑设计，打通手机端 QQ 与 Windows 端能力，让用户通过自然语言实现跨端自动规划与执行任务的闭环。
 
 ## 时间线
 
-- **2026-02-03** 🎉 LittleAngelBot 开源发布。
+- **2026-02-03** 🎉 小天使🐣智能体开源啦，欢迎使用!
 
 ## 核心亮点
 

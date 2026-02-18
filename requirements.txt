@@ -1,5 +1,5 @@
 openai
-botpy
+qq-botpy
 python-pptx
 weasyprint
 reportlab

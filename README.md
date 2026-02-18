@@ -13,6 +13,8 @@
 
 A cross-platform personal assistant agent inspired by OpenClaw, designed for Windows PCs. It bridges mobile QQ and Windows capabilities so users can use natural language to plan and execute tasks end-to-end across devices.
 
+LittleAngelBot can also be accessed via a CLI, and can be customized to integrate with platforms such as WhatsApp, Discord, Telegram, and more.
+
 ## Timeline
 
 - **2026-02-03** 🎉 LittleAngelBot is now open source.
