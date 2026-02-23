@@ -1,11 +1,10 @@
 ![LittleAngelBot Logo](docs/logo.png)
 
 <div align="center">
-  <h1>LittleAngelBot：手机 QQ 与 Windows 协同的个人助手</h1>
+  <h1>LittleAngelBot：手机 与 Windows 协同的个人助手</h1>
   <p>
     <img src="https://img.shields.io/badge/python-%E2%89%A53.11-blue" alt="Python">
     <img src="https://img.shields.io/badge/license-MIT-green" alt="License">
-    <a href="./COMMUNICATION.md"><img src="https://img.shields.io/badge/WeChat-Group-C5EAB4?style=flat&logo=wechat&logoColor=white" alt="WeChat"></a>
   </p>
 </div>
 
@@ -13,9 +12,24 @@
 
 首个国产版 OpenClaw 跨端个人助手 Agent。面向 Windows 电脑设计，打通手机端 QQ 与 Windows 端能力，让用户通过自然语言实现跨端自动规划与执行任务的闭环。
 
+## GUI 界面预览
+
+<div align="center">
+  <img src="docs/GUI.png" alt="LittleAngel Agent 控制台界面" width="1100" />
+</div>
+
 ## 时间线
 
 - **2026-02-03** 🎉 小天使🐣智能体开源啦，欢迎使用!
+- **2026-02-23** 🖥️ 新增图形化 **Agent 控制台**（`angel_console/`），支持统一管理与可视化操作：
+  - 聊天（SSE 流式 + ReAct 过程追踪）
+  - 语音输入（浏览器端录音 + 本地转写）
+  - 搜索任务（会话检索与上下文定位）
+  - 频道（Web / CLI / QQ / Discord）
+  - 定时任务（Cron）与心跳（Heartbeat）
+  - Skills 管理
+  - 模型配置与切换
+  - 模型计费与调用审计（Token 统计）
 
 ## 核心亮点
 
@@ -52,6 +66,21 @@
 - 定时任务与自动化执行
 - 跨端开发与代码任务执行
 
+## 图形化 Agent 控制台
+
+项目已提供本地图形化控制台 `angel_console/`，用于统一管理 Agent 的核心运行能力。控制台默认仅监听 `127.0.0.1`，适合本机开发和运维场景。
+
+主要功能包括：
+
+- 聊天：会话管理、流式输出、工具调用过程可视化
+- 语音输入：浏览器端录音后本地转写为文本（支持中英文）
+- 搜索任务：跨会话检索并快速定位相关上下文
+- 频道：统一配置与查看 Web / CLI / QQ / Discord 渠道状态
+- 定时任务与心跳：支持周期任务、即时触发与状态管理
+- Skills：从工作目录发现并展示可用技能
+- 模型：配置多 Provider/Profile，并切换当前工作模型
+- 模型计费：查看调用量、Token 消耗、失败率与调用明细
+
 ## 适用场景
 
 - 工作/学习资料的快速搜集与结构化整理
@@ -66,7 +95,7 @@
 - `LLM_API_KEY`（必填，用于模型调用）
 - `LLM_BASE_URL`（可选；默认值由 `LLM_PROVIDER` 决定）
 - `LLM_MODEL`（可选；默认值由 `LLM_PROVIDER` 决定）
-- `LLM_PROVIDER`（可选，`openai|dashscope|siliconflow|anthropic`，也可自动识别）
+- `LLM_PROVIDER`（可选，`openai|anthropic|dashscope`，也可自动识别）
 - `BRAVE_API_KEY`（可选，用于网页搜索）
 - `ZHIPU_API_KEY`（可选，用于网页搜索）
 - `BOTPY_APPID`（必填，QQ 入口需要）

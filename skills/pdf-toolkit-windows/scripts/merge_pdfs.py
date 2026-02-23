@@ -9,6 +9,14 @@ from pypdf import PdfWriter
 
 
 def main() -> int:
+    """Main.
+    
+    Args:
+        None.
+    
+    Returns:
+        int: Result produced by this function.
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument("--out", required=True, help="Output PDF")
     parser.add_argument("--inputs", nargs="+", required=True, help="Input PDFs in order")

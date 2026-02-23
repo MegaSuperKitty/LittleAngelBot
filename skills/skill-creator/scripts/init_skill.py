@@ -187,20 +187,26 @@ Note: This is a text placeholder. Actual assets can be any file type.
 
 
 def title_case_skill_name(skill_name):
-    """Convert hyphenated skill name to Title Case for display."""
+    """Convert hyphenated skill name to Title Case for display.
+    
+    Args:
+        skill_name (Any): Input value for skill name.
+    
+    Returns:
+        Any: Result produced by this function.
+    """
     return ' '.join(word.capitalize() for word in skill_name.split('-'))
 
 
 def init_skill(skill_name, path):
-    """
-    Initialize a new skill directory with template SKILL.md.
-
+    """Initialize a new skill directory with template SKILL.md.
+    
     Args:
-        skill_name: Name of the skill
-        path: Path where the skill directory should be created
-
+        skill_name (Any): Input value for skill name.
+        path (Any): Filesystem path used by this operation.
+    
     Returns:
-        Path to created skill directory, or None if error
+        Any: Result produced by this function.
     """
     # Determine skill directory path
     skill_dir = Path(path).resolve() / skill_name
@@ -271,6 +277,14 @@ def init_skill(skill_name, path):
 
 
 def main():
+    """Main.
+    
+    Args:
+        None.
+    
+    Returns:
+        None: This method does not return a value.
+    """
     if len(sys.argv) < 4 or sys.argv[2] != '--path':
         print("Usage: init_skill.py <skill-name> --path <path>")
         print("\nSkill name requirements:")

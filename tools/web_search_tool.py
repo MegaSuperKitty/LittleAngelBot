@@ -14,7 +14,20 @@ from tool import Tool
 
 
 class WebSearchTool(Tool):
+    """Represent the WebSearchTool component.
+    
+    Note:
+        This class currently exposes no documented instance attributes.
+    """
     def __init__(self):
+        """Initialize web search tool state and dependencies.
+        
+        Args:
+            None.
+        
+        Returns:
+            None: This method does not return a value.
+        """
         super().__init__(
             name="web_search",
             description=(
@@ -42,6 +55,17 @@ class WebSearchTool(Tool):
         )
 
     def _execute(self, **kwargs):
+        """Internal helper to execute.
+        
+        Args:
+            **kwargs (Any): Additional keyword arguments for extensibility.
+        
+        Returns:
+            Any: Result produced by this function.
+        
+        Note:
+            This is a private helper used internally by the module/class.
+        """
         query = (kwargs.get("query") or "").strip()
         if not query:
             return "query 不能为空。"
@@ -61,6 +85,20 @@ class WebSearchTool(Tool):
 
 
 def _search_brave_api(query: str, top_k: int, recency_days: Optional[int], domains: List[str]) -> str:
+    """Internal helper to search brave api.
+    
+    Args:
+        query (str): Input value for query.
+        top_k (int): Input value for top k.
+        recency_days (Optional[int]): Input value for recency days.
+        domains (List[str]): Input value for domains.
+    
+    Returns:
+        str: Result produced by this function.
+    
+    Note:
+        This is a private helper used internally by the module/class.
+    """
     api_key = os.getenv("BRAVE_API_KEY", "").strip()
     if not api_key:
         return "未配置 BRAVE_API_KEY。"
@@ -84,6 +122,19 @@ def _search_brave_api(query: str, top_k: int, recency_days: Optional[int], domai
 
 
 def _search_brave_html(query: str, top_k: int, domains: List[str]) -> str:
+    """Internal helper to search brave html.
+    
+    Args:
+        query (str): Input value for query.
+        top_k (int): Input value for top k.
+        domains (List[str]): Input value for domains.
+    
+    Returns:
+        str: Result produced by this function.
+    
+    Note:
+        This is a private helper used internally by the module/class.
+    """
     if domains:
         domain_query = " OR ".join(f"site:{d}" for d in domains if d)
         if domain_query:
@@ -103,6 +154,18 @@ def _search_brave_html(query: str, top_k: int, domains: List[str]) -> str:
 
 
 def _parse_brave_html(html: str, limit: int = 5) -> List[dict]:
+    """Internal helper to parse brave html.
+    
+    Args:
+        html (str): Input value for html.
+        limit (int): Input value for limit.
+    
+    Returns:
+        List[dict]: Result produced by this function.
+    
+    Note:
+        This is a private helper used internally by the module/class.
+    """
     results = []
     link_re = re.compile(r'<a[^>]+class="[^"]*result__a[^"]*"[^>]+href="([^"]+)"[^>]*>(.*?)</a>', re.S)
     snippet_re = re.compile(r'<div[^>]+class="[^"]*snippet[^"]*"[^>]*>(.*?)</div>', re.S)
@@ -118,12 +181,37 @@ def _parse_brave_html(html: str, limit: int = 5) -> List[dict]:
 
 
 def _strip_tags(text: str) -> str:
+    """Internal helper to strip tags.
+    
+    Args:
+        text (str): Text content to process.
+    
+    Returns:
+        str: Result produced by this function.
+    
+    Note:
+        This is a private helper used internally by the module/class.
+    """
     cleaned = re.sub(r"<[^>]+>", "", text or "")
     cleaned = re.sub(r"\s+", " ", cleaned)
     return cleaned.strip()
 
 
 def _format_results(results: List[dict], title_key: str, url_key: str, desc_key: str) -> str:
+    """Internal helper to format results.
+    
+    Args:
+        results (List[dict]): Input value for results.
+        title_key (str): Input value for title key.
+        url_key (str): Input value for url key.
+        desc_key (str): Input value for desc key.
+    
+    Returns:
+        str: Result produced by this function.
+    
+    Note:
+        This is a private helper used internally by the module/class.
+    """
     if not results:
         return "未找到结果。"
     lines = []

@@ -12,7 +12,20 @@ from .path_utils import normalize_root, resolve_relative_path, is_within_base
 
 
 class GlobTool(Tool):
+    """Represent the GlobTool component.
+    
+    Attributes:
+        _agent_root (Any): Instance field for agent root.
+    """
     def __init__(self, agent_root: Optional[str] = None):
+        """Initialize glob tool state and dependencies.
+        
+        Args:
+            agent_root (Optional[str]): Filesystem path used by this operation.
+        
+        Returns:
+            None: This method does not return a value.
+        """
         self._agent_root = normalize_root(agent_root or os.getcwd())
         super().__init__(
             name="glob",
@@ -28,6 +41,17 @@ class GlobTool(Tool):
         )
 
     def _execute(self, **kwargs):
+        """Internal helper to execute.
+        
+        Args:
+            **kwargs (Any): Additional keyword arguments for extensibility.
+        
+        Returns:
+            Any: Result produced by this function.
+        
+        Note:
+            This is a private helper used internally by the module/class.
+        """
         pattern = (kwargs.get("pattern") or "").strip()
         max_results = int(kwargs.get("max_results") or 200)
         if not pattern:

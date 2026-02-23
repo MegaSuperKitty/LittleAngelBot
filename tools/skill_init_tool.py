@@ -16,7 +16,21 @@ _SKILL_NAME_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 
 
 class SkillInitTool(Tool):
+    """Represent the SkillInitTool component.
+    
+    Attributes:
+        _skills_root (Any): Instance field for skills root.
+        _script_path (Any): Filesystem path maintained by the instance.
+    """
     def __init__(self, skills_root: str):
+        """Initialize skill init tool state and dependencies.
+        
+        Args:
+            skills_root (str): Input value for skills root.
+        
+        Returns:
+            None: This method does not return a value.
+        """
         self._skills_root = os.path.abspath(skills_root)
         self._script_path = os.path.join(
             self._skills_root, "skill-creator", "scripts", "init_skill.py"
@@ -40,6 +54,17 @@ class SkillInitTool(Tool):
         )
 
     def _execute(self, **kwargs):
+        """Internal helper to execute.
+        
+        Args:
+            **kwargs (Any): Additional keyword arguments for extensibility.
+        
+        Returns:
+            Any: Result produced by this function.
+        
+        Note:
+            This is a private helper used internally by the module/class.
+        """
         skill_name = (kwargs.get("skill_name") or "").strip()
         if not skill_name:
             return "skill_name 不能为空。"

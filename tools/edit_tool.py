@@ -11,7 +11,20 @@ from .path_utils import normalize_root, resolve_relative_path
 
 
 class EditTool(Tool):
+    """Represent the EditTool component.
+    
+    Attributes:
+        _agent_root (Any): Instance field for agent root.
+    """
     def __init__(self, agent_root: Optional[str] = None):
+        """Initialize edit tool state and dependencies.
+        
+        Args:
+            agent_root (Optional[str]): Filesystem path used by this operation.
+        
+        Returns:
+            None: This method does not return a value.
+        """
         self._agent_root = normalize_root(agent_root or os.getcwd())
         super().__init__(
             name="edit",
@@ -33,6 +46,17 @@ class EditTool(Tool):
         )
 
     def _execute(self, **kwargs):
+        """Internal helper to execute.
+        
+        Args:
+            **kwargs (Any): Additional keyword arguments for extensibility.
+        
+        Returns:
+            Any: Result produced by this function.
+        
+        Note:
+            This is a private helper used internally by the module/class.
+        """
         path = kwargs.get("path")
         old_text = kwargs.get("old_text")
         new_text = kwargs.get("new_text") or ""
@@ -76,5 +100,17 @@ class EditTool(Tool):
 
 
 def _write_file(path: str, content: str) -> None:
+    """Internal helper to write file.
+    
+    Args:
+        path (str): Filesystem path used by this operation.
+        content (str): Text content to process.
+    
+    Returns:
+        None: This method does not return a value.
+    
+    Note:
+        This is a private helper used internally by the module/class.
+    """
     with open(path, "w", encoding="utf-8") as f:
         f.write(content)

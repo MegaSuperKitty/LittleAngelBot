@@ -7,7 +7,7 @@ from typing import Dict, List, Optional, Tuple
 import json
 
 from ReAct import ReActAgent
-from context import ContextWindowManager
+from context import ReActContextManager
 from llm_provider import get_response
 
 
@@ -21,33 +21,24 @@ class ReCAPAgent:
         max_subtasks: int = 5,
         max_steps: int = 20,
         store_internal_messages: bool = True,
-        context_manager: Optional[ContextWindowManager] = None,
-        summarizer=None,
+        context_manager: Optional[ReActContextManager] = None,
     ):
         self.base_agent = base_agent
         self.max_depth = max_depth
         self.max_subtasks = max_subtasks
         self.max_steps = max_steps
         self.store_internal_messages = store_internal_messages
-        self.context_manager = context_manager or base_agent.context_manager or ContextWindowManager()
+        self.context_manager = context_manager or base_agent.context_manager or ReActContextManager()
         self.system_prompt = base_agent.system_prompt
-        self.summarizer = summarizer
 
-    def run(self, history: List[Dict[str, str]], tools=None, cancel_checker=None) -> Tuple[str, List[Dict[str, str]]]:
-        context = history if hasattr(history, "get_messages") else None
-        history_messages = context.get_history_messages() if context else (history or [])
-        messages = list(history_messages or [])
-        if context:
-            context.set_runtime_messages(messages)
-        new_messages: List[Dict[str, str]] = []
+    def run(self, tools=None, cancel_checker=None) -> Tuple[str, List[Dict[str, str]]]:
+        messages = self.context_manager.get_messages()
         task_text = self._latest_user_task(messages)
         if not task_text:
-            return "", new_messages
+            return "", []
 
-        final_text, delta = self._solve(
-            task_text, messages, tools, depth=0, cancel_checker=cancel_checker, context=context
-        )
-        return final_text, delta
+        final_text = self._solve(task_text, messages, tools, depth=0, cancel_checker=cancel_checker)
+        return final_text, []
 
     def _solve(
         self,
@@ -56,11 +47,9 @@ class ReCAPAgent:
         tools,
         depth: int,
         cancel_checker=None,
-        context=None,
-    ) -> Tuple[str, List[Dict[str, str]]]:
-        new_messages: List[Dict[str, str]] = []
+    ) -> str:
         if cancel_checker and cancel_checker():
-            return "", []
+            return ""
         plan = self._plan(task_text, messages)
         if not plan.get("subtasks"):
             plan = {
@@ -69,9 +58,8 @@ class ReCAPAgent:
             }
 
         plan_msg = {"role": "assistant", "content": f"[ReCAP PLAN]\n{json.dumps(plan, ensure_ascii=False)}"}
-        messages.append(plan_msg)
-        new_messages.append(plan_msg)
-        self._sync_context(context, messages)
+        self.context_manager.append_message(plan_msg)
+        messages = self.context_manager.get_messages()
 
         remaining = list(plan.get("subtasks", []))
         last_result = ""
@@ -79,44 +67,38 @@ class ReCAPAgent:
 
         while remaining:
             if cancel_checker and cancel_checker():
-                return "", []
+                return ""
             step_count += 1
             if step_count > self.max_steps:
                 final_text = "Reached ReCAP step limit; returning partial result."
-                assistant_msg = {"role": "assistant", "content": final_text}
-                new_messages.append(assistant_msg)
-                return last_result or final_text, new_messages
+                self.context_manager.append_message({"role": "assistant", "content": final_text})
+                return last_result or final_text
+
             current = remaining.pop(0)
             subtask = (current.get("task") or "").strip()
             is_primitive = bool(current.get("is_primitive"))
             if not subtask:
                 continue
 
-            subtask_msg = {"role": "user", "content": f"[Subtask] {subtask}"}
-            messages.append(subtask_msg)
-            new_messages.append(subtask_msg)
-            self._sync_context(context, messages)
+            self.context_manager.append_message({"role": "user", "content": f"[Subtask] {subtask}"})
+            messages = self.context_manager.get_messages()
 
             if is_primitive or depth >= self.max_depth:
-                result, sub_new = self.base_agent.run(messages, tools=tools, cancel_checker=cancel_checker)
+                result, _ = self.base_agent.run(tools=tools, cancel_checker=cancel_checker)
             else:
-                result, sub_new = self._solve(
-                    subtask, messages, tools, depth + 1, cancel_checker=cancel_checker, context=context
-                )
-            messages.extend(sub_new)
-            new_messages.extend(sub_new)
-            self._sync_context(context, messages)
+                result = self._solve(subtask, messages, tools, depth + 1, cancel_checker=cancel_checker)
+            messages = self.context_manager.get_messages()
             last_result = result
+
             if self._needs_user_input(subtask, result):
-                return last_result, new_messages
+                return last_result
 
             reinject = {
                 "role": "assistant",
                 "content": self._format_reinject(task_text, subtask, result, remaining),
             }
-            messages.append(reinject)
-            new_messages.append(reinject)
-            self._sync_context(context, messages)
+            self.context_manager.append_message(reinject)
+            messages = self.context_manager.get_messages()
 
             if remaining:
                 refined = self._refine(task_text, remaining, subtask, result, messages)
@@ -126,16 +108,10 @@ class ReCAPAgent:
                         "role": "assistant",
                         "content": f"[ReCAP UPDATE]\n{json.dumps(refined, ensure_ascii=False)}",
                     }
-                    messages.append(refine_msg)
-                    new_messages.append(refine_msg)
-                    self._sync_context(context, messages)
+                    self.context_manager.append_message(refine_msg)
+                    messages = self.context_manager.get_messages()
 
-        return last_result, new_messages
-
-    @staticmethod
-    def _sync_context(context, messages: List[Dict[str, str]]) -> None:
-        if context is not None and hasattr(context, "set_runtime_messages"):
-            context.set_runtime_messages(messages)
+        return last_result
 
     def _plan(self, task_text: str, messages: List[Dict[str, str]]) -> Dict:
         prompt = (
@@ -144,15 +120,10 @@ class ReCAPAgent:
             f"- 子任务数量不超过 {self.max_subtasks}。\n"
             "- 显式标注 is_primitive（是否可直接执行的最小动作）。\n"
             "- 输出 JSON 且仅包含以下字段：thought, subtasks。\n"
-            "- subtasks 中每一项只包含 task 与 is_primitive。\n"
+            "- subtasks 中每一项只包含 task 和 is_primitive。\n"
         )
-        triggered_by_non_assistant = messages and messages[-1].get("role") != "assistant"
-        windowed = self.context_manager.compress_messages(
-            messages,
-            summarizer=self.summarizer,
-            preserve_system=False,
-            triggered_by_non_assistant=triggered_by_non_assistant,
-        )
+        window_source = [msg for msg in messages if msg.get("role") != "system"]
+        windowed = self.context_manager.compress_messages(window_source, preserve_system=False)
         planner_messages = [{"role": "system", "content": self.system_prompt}] + windowed + [
             {"role": "user", "content": prompt}
         ]
@@ -175,15 +146,10 @@ class ReCAPAgent:
             f"- 执行结果：{result}\n"
             f"- 当前剩余子任务：{remain_json}\n"
             "- 输出 JSON 且仅包含以下字段：thought, subtasks。\n"
-            "- subtasks 中每一项只包含 task 与 is_primitive。\n"
+            "- subtasks 中每一项只包含 task 和 is_primitive。\n"
         )
-        triggered_by_non_assistant = messages and messages[-1].get("role") != "assistant"
-        windowed = self.context_manager.compress_messages(
-            messages,
-            summarizer=self.summarizer,
-            preserve_system=False,
-            triggered_by_non_assistant=triggered_by_non_assistant,
-        )
+        window_source = [msg for msg in messages if msg.get("role") != "system"]
+        windowed = self.context_manager.compress_messages(window_source, preserve_system=False)
         refiner_messages = [{"role": "system", "content": self.system_prompt}] + windowed + [
             {"role": "user", "content": prompt}
         ]
@@ -236,13 +202,15 @@ class ReCAPAgent:
     def _needs_user_input(self, subtask: str, result: str) -> bool:
         if not result:
             return False
-        if any(k in subtask for k in ["ask user", "wait for user", "need user", "user input"]):
+        subtask_lower = subtask.lower()
+        if any(k in subtask_lower for k in ["ask user", "wait for user", "need user", "user input"]):
             return True
         text = result.strip()
-        if text.endswith('?'):
+        if text.endswith("?") or text.endswith("？"):
             return True
+        lower_text = text.lower()
         hints = ["please", "need", "tell me", "provide", "could you", "can you", "what is", "which"]
-        return any(h in text for h in hints)
+        return any(h in lower_text for h in hints)
 
     def _latest_user_task(self, messages: List[Dict[str, str]]) -> str:
         for msg in reversed(messages):

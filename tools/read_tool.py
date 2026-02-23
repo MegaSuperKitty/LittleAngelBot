@@ -11,7 +11,20 @@ from .path_utils import normalize_root, resolve_relative_path
 
 
 class ReadTool(Tool):
+    """Represent the ReadTool component.
+    
+    Attributes:
+        _agent_root (Any): Instance field for agent root.
+    """
     def __init__(self, agent_root: Optional[str] = None):
+        """Initialize read tool state and dependencies.
+        
+        Args:
+            agent_root (Optional[str]): Filesystem path used by this operation.
+        
+        Returns:
+            None: This method does not return a value.
+        """
         self._agent_root = normalize_root(agent_root or os.getcwd())
         super().__init__(
             name="read",
@@ -31,6 +44,17 @@ class ReadTool(Tool):
         )
 
     def _execute(self, **kwargs):
+        """Internal helper to execute.
+        
+        Args:
+            **kwargs (Any): Additional keyword arguments for extensibility.
+        
+        Returns:
+            Any: Result produced by this function.
+        
+        Note:
+            This is a private helper used internally by the module/class.
+        """
         path = kwargs.get("path")
         start_line = int(kwargs.get("start_line") or 1)
         end_line = kwargs.get("end_line")

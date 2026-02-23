@@ -14,6 +14,20 @@ from pptx.util import Inches, Pt
 
 
 def _load_spec(path: str) -> Dict[str, Any]:
+    """Internal helper to load spec.
+    
+    Args:
+        path (str): Filesystem path used by this operation.
+    
+    Returns:
+        Dict[str, Any]: Result produced by this function.
+    
+    Raises:
+        RuntimeError: Raised when an execution error occurs.
+    
+    Note:
+        This is a private helper used internally by the module/class.
+    """
     _, ext = os.path.splitext(path.lower())
     with open(path, "r", encoding="utf-8") as f:
         raw = f.read()
@@ -31,11 +45,34 @@ def _load_spec(path: str) -> Dict[str, Any]:
 
 
 def _set_widescreen(prs: Presentation) -> None:
+    """Internal helper to set widescreen.
+    
+    Args:
+        prs (Presentation): Input value for prs.
+    
+    Returns:
+        None: This method does not return a value.
+    
+    Note:
+        This is a private helper used internally by the module/class.
+    """
     prs.slide_width = Inches(13.333)
     prs.slide_height = Inches(7.5)
 
 
 def _add_title_slide(prs: Presentation, slide_spec: Dict[str, Any]) -> None:
+    """Internal helper to add title slide.
+    
+    Args:
+        prs (Presentation): Input value for prs.
+        slide_spec (Dict[str, Any]): Input value for slide spec.
+    
+    Returns:
+        None: This method does not return a value.
+    
+    Note:
+        This is a private helper used internally by the module/class.
+    """
     layout = prs.slide_layouts[0] if prs.slide_layouts else None
     slide = prs.slides.add_slide(layout) if layout else prs.slides.add_slide(prs.slide_layouts[5])
 
@@ -56,6 +93,18 @@ def _add_title_slide(prs: Presentation, slide_spec: Dict[str, Any]) -> None:
 
 
 def _add_bullets_slide(prs: Presentation, slide_spec: Dict[str, Any]) -> None:
+    """Internal helper to add bullets slide.
+    
+    Args:
+        prs (Presentation): Input value for prs.
+        slide_spec (Dict[str, Any]): Input value for slide spec.
+    
+    Returns:
+        None: This method does not return a value.
+    
+    Note:
+        This is a private helper used internally by the module/class.
+    """
     layout = prs.slide_layouts[1] if len(prs.slide_layouts) > 1 else prs.slide_layouts[5]
     slide = prs.slides.add_slide(layout)
 
@@ -92,6 +141,18 @@ def _add_bullets_slide(prs: Presentation, slide_spec: Dict[str, Any]) -> None:
 
 
 def _add_two_col_slide(prs: Presentation, slide_spec: Dict[str, Any]) -> None:
+    """Internal helper to add two col slide.
+    
+    Args:
+        prs (Presentation): Input value for prs.
+        slide_spec (Dict[str, Any]): Input value for slide spec.
+    
+    Returns:
+        None: This method does not return a value.
+    
+    Note:
+        This is a private helper used internally by the module/class.
+    """
     slide = prs.slides.add_slide(prs.slide_layouts[5])
 
     title = slide_spec.get("title", "")
@@ -115,6 +176,21 @@ def _add_two_col_slide(prs: Presentation, slide_spec: Dict[str, Any]) -> None:
 
 
 def _add_image_slide(prs: Presentation, slide_spec: Dict[str, Any]) -> None:
+    """Internal helper to add image slide.
+    
+    Args:
+        prs (Presentation): Input value for prs.
+        slide_spec (Dict[str, Any]): Input value for slide spec.
+    
+    Returns:
+        None: This method does not return a value.
+    
+    Raises:
+        ValueError: Raised when an execution error occurs.
+    
+    Note:
+        This is a private helper used internally by the module/class.
+    """
     slide = prs.slides.add_slide(prs.slide_layouts[5])
 
     image_path = slide_spec.get("image")
@@ -136,6 +212,20 @@ def _add_image_slide(prs: Presentation, slide_spec: Dict[str, Any]) -> None:
 
 
 def build_pptx(spec: Dict[str, Any], out_path: str, template: str | None, widescreen: bool) -> None:
+    """Build pptx.
+    
+    Args:
+        spec (Dict[str, Any]): Input value for spec.
+        out_path (str): Filesystem path for out path.
+        template (str | None): Input value for template.
+        widescreen (bool): Input value for widescreen.
+    
+    Returns:
+        None: This method does not return a value.
+    
+    Raises:
+        ValueError: Raised when an execution error occurs.
+    """
     prs = Presentation(template) if template else Presentation()
     if widescreen:
         _set_widescreen(prs)
@@ -159,6 +249,14 @@ def build_pptx(spec: Dict[str, Any], out_path: str, template: str | None, widesc
 
 
 def main() -> int:
+    """Main.
+    
+    Args:
+        None.
+    
+    Returns:
+        int: Result produced by this function.
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument("--spec", required=True, help="Path to JSON/YAML spec")
     parser.add_argument("--out", required=True, help="Output .pptx path")

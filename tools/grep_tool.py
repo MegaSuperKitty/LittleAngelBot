@@ -11,7 +11,20 @@ from .path_utils import normalize_root, resolve_relative_path, is_within_base
 
 
 class GrepTool(Tool):
+    """Represent the GrepTool component.
+    
+    Attributes:
+        _agent_root (Any): Instance field for agent root.
+    """
     def __init__(self, agent_root: Optional[str] = None):
+        """Initialize grep tool state and dependencies.
+        
+        Args:
+            agent_root (Optional[str]): Filesystem path used by this operation.
+        
+        Returns:
+            None: This method does not return a value.
+        """
         self._agent_root = normalize_root(agent_root or os.getcwd())
         super().__init__(
             name="grep",
@@ -28,6 +41,17 @@ class GrepTool(Tool):
         )
 
     def _execute(self, **kwargs):
+        """Internal helper to execute.
+        
+        Args:
+            **kwargs (Any): Additional keyword arguments for extensibility.
+        
+        Returns:
+            Any: Result produced by this function.
+        
+        Note:
+            This is a private helper used internally by the module/class.
+        """
         pattern = (kwargs.get("pattern") or "")
         target = (kwargs.get("path") or ".").strip()
         max_matches = int(kwargs.get("max_matches") or 200)
@@ -58,6 +82,21 @@ class GrepTool(Tool):
 
 
 def _scan_file(path: str, base: str, pattern: str, out: list, limit: int) -> None:
+    """Internal helper to scan file.
+    
+    Args:
+        path (str): Filesystem path used by this operation.
+        base (str): Input value for base.
+        pattern (str): Input value for pattern.
+        out (list): Input value for out.
+        limit (int): Input value for limit.
+    
+    Returns:
+        None: This method does not return a value.
+    
+    Note:
+        This is a private helper used internally by the module/class.
+    """
     try:
         with open(path, "r", encoding="utf-8", errors="ignore") as f:
             for idx, line in enumerate(f, start=1):

@@ -1,5 +1,8 @@
 openai
+sentence-transformers
+faster-whisper
 qq-botpy
+discord.py
 python-pptx
 weasyprint
 reportlab
@@ -9,3 +12,7 @@ pillow
 jinja2
 markdown
 pyyaml
+fastapi
+uvicorn
+croniter
+python-multipart

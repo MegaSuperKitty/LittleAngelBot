@@ -1,39 +1,42 @@
 # -*- coding: utf-8 -*-
-"""LittleAngelBot：集成 ReAct、上下文与工具。"""
+"""LittleAngelBot: compose ReAct/ReCAP, context, session manager, and tools."""
+
+from __future__ import annotations
 
 from typing import Optional
 import json
 import os
 
-from ReAct import ReActAgent
+from ReAct import ReActAgent, ReActHooks
 from ReCAP import ReCAPAgent
-from context import ContextWindowManager, HistoryManager, LlmSummarizer
+from context import LlmSummarizer, ReActContextManager
 from llm_provider import get_response
-from tools.bash_tool import BashTool
-from tools.edit_tool import EditTool
-from tools.glob_tool import GlobTool
-from tools.grep_tool import GrepTool
-from tools.read_tool import ReadTool
-from tools.write_file_tool import WriteFileTool
-from tools.cite_manager_tool import CiteManagerTool
-from tools.quote_extract_tool import QuoteExtractTool
-from tools.report_template_tool import ReportTemplateTool
-from tools.source_compare_tool import SourceCompareTool
-from tools.skill_executor_tool import SkillExecutorTool
+from session_manager import SessionManager
 from skill_registry import SkillRegistry
 from tools.alarm_tool import AlarmTool
 from tools.ask_human_tool import AskHumanManager, AskHumanTool
+from tools.bash_tool import BashTool
+from tools.cite_manager_tool import CiteManagerTool
+from tools.edit_tool import EditTool
+from tools.glob_tool import GlobTool
+from tools.grep_tool import GrepTool
+from tools.quote_extract_tool import QuoteExtractTool
+from tools.read_tool import ReadTool
+from tools.report_template_tool import ReportTemplateTool
+from tools.skill_executor_tool import SkillExecutorTool
+from tools.skill_init_tool import SkillInitTool
 from tools.skill_tool import SkillTool
+from tools.source_compare_tool import SourceCompareTool
 from tools.sub_agent_tool import SubAgentTool
+from tools.thinking_tool import ThinkingTool
 from tools.time_tool import TimeTool
 from tools.web_fetch_tool import WebFetchTool
+from tools.write_file_tool import WriteFileTool
 from tools.zhipu_web_search_tool import ZhipuWebSearchTool
-from tools.skill_init_tool import SkillInitTool
-from tools.thinking_tool import ThinkingTool
 
 
 class LittleAngelBot:
-    """面向聊天入口的统一机器人封装。"""
+    """Unified chatbot entry class."""
 
     def __init__(
         self,
@@ -44,40 +47,42 @@ class LittleAngelBot:
         agent_root: Optional[str] = None,
     ):
         self._system_handler = None
-        summarizer = LlmSummarizer()
         self.project_root = os.path.dirname(__file__)
         self.agent_root = agent_root or os.path.join(self.project_root, "agent_workspace")
         os.makedirs(self.agent_root, exist_ok=True)
-        self.context_manager = ContextWindowManager(agent_root=self.agent_root)
+
+        self.max_steps = max_steps
+        self.summarizer = LlmSummarizer()
+        self.session_manager = SessionManager(history_dir, max_rounds=max_rounds)
+        self.context_manager: Optional[ReActContextManager] = None
         self.ask_human_manager = AskHumanManager()
-        self.history_manager = HistoryManager(
-            history_dir,
-            max_rounds=max_rounds,
-            summarizer=summarizer,
-            context_manager=self.context_manager,
-        )
-        self.react_agent = ReActAgent(
-            max_steps=max_steps,
-            context_manager=self.context_manager,
-            summarizer=summarizer,
-        )
-        self.recap_agent = ReCAPAgent(
-            base_agent=self.react_agent,
-            context_manager=self.context_manager,
-            summarizer=summarizer,
-        )
+
         self.skill_registry = self._load_skill_registry()
         self.system_prompt = system_prompt or self._default_system_prompt()
-        self.react_agent.system_prompt = self.system_prompt
-        self.recap_agent.system_prompt = self.system_prompt
+
+        self._react_hooks = ReActHooks()
+        self._react_hook_error_mode = "isolate"
+
         self.tools = self._load_tools()
 
     def handle_message(self, user_id: str, content: str) -> Optional[str]:
-        """处理用户消息，返回回复文本。"""
+        """Process one user message and return assistant text."""
         return self.run_task(user_id, content)
 
+    def set_react_hooks(self, hooks: ReActHooks) -> None:
+        """Set bot-level ReAct hooks; applied to each run-created ReActAgent."""
+        self._react_hooks = hooks
+
+    def get_react_hooks(self) -> ReActHooks:
+        """Get current bot-level ReAct hooks."""
+        return self._react_hooks
+
+    def set_react_hook_error_mode(self, mode: str) -> None:
+        """Set ReAct hook error strategy for future runs."""
+        self._react_hook_error_mode = mode if mode in {"isolate", "strict"} else "isolate"
+
     def run_task(self, user_id: str, content: str, cancel_checker=None) -> Optional[str]:
-        """运行一次任务，可选支持取消。"""
+        """Run one task with optional cancel checks."""
         content = (content or "").strip()
         if not content:
             return None
@@ -86,67 +91,103 @@ class LittleAngelBot:
         if command_reply is not None:
             return command_reply
 
-        context = self.history_manager.open_context(user_id)
-        # Bind per-user data so tools (e.g., alarm) can trigger messages back to this user.
-        self._bind_tool_user_context(user_id, cancel_checker=cancel_checker)
-        # Bind shared runtime context for tools that need it (e.g., thinking_tool).
-        self._bind_thinking_context(context)
-        context.append_message("user", content)
+        session_path = self.session_manager.get_or_create_session_path(user_id)
+        context_manager = self._create_context_manager(session_path)
+        self.context_manager = context_manager
+        react_agent, recap_agent = self._create_agents_for_run(context_manager)
+        cancel_recorded = False
 
-        messages = context.get_messages()
+        self._bind_tool_user_context(user_id, session_path=session_path, cancel_checker=cancel_checker)
+        self._bind_thinking_context()
+
+        context_manager.append_message({"role": "user", "content": content})
+
         if cancel_checker and cancel_checker():
-            context.rollback()
+            if not cancel_recorded:
+                self._record_cancel_dialog(context_manager)
+                cancel_recorded = True
             return None
 
+        messages = context_manager.get_messages()
         use_recap = self._should_use_recap(messages)
         if use_recap:
-            reply_text, new_messages = self.recap_agent.run(
-                messages, tools=self.tools, cancel_checker=cancel_checker
-            )
+            reply_text, _ = recap_agent.run(tools=self.tools, cancel_checker=cancel_checker)
         else:
-            reply_text, new_messages = self.react_agent.run(
-                messages, tools=self.tools, cancel_checker=cancel_checker
-            )
+            reply_text, _ = react_agent.run(tools=self.tools, cancel_checker=cancel_checker)
+
         if cancel_checker and cancel_checker():
-            context.rollback()
+            if not cancel_recorded:
+                self._record_cancel_dialog(context_manager)
+                cancel_recorded = True
             return None
 
-        context.append_messages(new_messages)
-        context.finalize()
-
+        self.session_manager.maybe_rename_after_rounds(user_id, context_manager.get_context_path())
         return reply_text
+
+    def _create_context_manager(self, session_path: str) -> ReActContextManager:
+        return ReActContextManager(
+            context_path=session_path,
+            agent_root=self.agent_root,
+            summarizer=self.summarizer,
+        )
+
+    def _create_agents_for_run(
+        self,
+        context_manager: ReActContextManager,
+    ) -> tuple[ReActAgent, ReCAPAgent]:
+        react_agent = ReActAgent(
+            max_steps=self.max_steps,
+            context_manager=context_manager,
+            system_prompt=self.system_prompt,
+            hooks=self._react_hooks,
+            hook_error_mode=self._react_hook_error_mode,
+        )
+        recap_agent = ReCAPAgent(
+            base_agent=react_agent,
+            context_manager=context_manager,
+        )
+        recap_agent.system_prompt = self.system_prompt
+        return react_agent, recap_agent
+
+    def _record_cancel_dialog(self, context_manager: ReActContextManager) -> None:
+        context_manager.append_messages(
+            [
+                {"role": "user", "content": "结束任务"},
+                {"role": "assistant", "content": "ok"},
+            ]
+        )
 
     def _handle_command(self, user_id: str, content: str) -> Optional[str]:
         if content.startswith("/listhistory"):
-            names = self.history_manager.list_histories(user_id)
+            names = self.session_manager.list_sessions(user_id)
             return "历史列表为空。" if not names else "历史列表：\n" + "\n".join(names)
 
         if content.startswith("/history"):
             parts = content.split(maxsplit=1)
             if len(parts) < 2:
                 return "用法：/history 历史名"
-            target = self.history_manager.switch_history(user_id, parts[1].strip())
+            target = self.session_manager.switch_session(user_id, parts[1].strip())
             if target:
-                name = self.history_manager.get_display_name(target)
+                name = self.session_manager.get_display_name(target)
                 return f"已切换到历史：{name}"
             return "未找到该历史名。"
 
         if content.startswith("/newhistory"):
-            path = self.history_manager.create_new_history(user_id)
-            name = self.history_manager.get_display_name(path)
+            path = self.session_manager.create_new_session(user_id)
+            name = self.session_manager.get_display_name(path)
             return f"已新建历史：{name}"
 
         return None
 
     def _should_use_recap(self, messages) -> bool:
-        """LLM-based router: use ReCAP for complex tasks, otherwise ReAct."""
+        """LLM-based router: choose ReCAP for multi-stage tasks."""
         prompt = (
-            "你是任务路由器。判断用户最新请求是否为复杂任务："
-            "如果完成任务预计需要5步以上的LLM调用或明显多阶段计划，输出 RECAP；"
+            "你是任务路由器。判断用户最新请求是否为复杂任务。"
+            "如果完成任务预计需要2步以上的LLM调用或明显多阶段规划，输出 RECAP；"
             "否则输出 REACT。只输出 RECAP 或 REACT。"
         )
         inputs = [{"role": "system", "content": self.system_prompt}]
-        inputs.extend(messages[-12:])  # keep it small
+        inputs.extend(messages[-12:])
         inputs.append({"role": "user", "content": prompt})
         try:
             resp = get_response(inputs, tools=None, stream=False)
@@ -159,37 +200,14 @@ class LittleAngelBot:
 
     def _default_system_prompt(self) -> str:
         return (
-            """# LittleAngelBot System Prompt
-
-你是 LittleAngelBot，一个以**工具优先**的助手。目标是可靠、可执行、可验证地完成任务。
-
-## 核心原则
-
-- **工具优先**：能用工具就用工具获取信息或执行操作。
-- **失败不放弃**：工具调用失败并不可怕，必须从失败返回中反思原因，调整方案后继续执行。
-- **安全优先**：运行环境是 Windows，执行命令前先确认安全。
-
-## Skills 使用规则
-
-- 当用户提到某个技能或技能相关任务时，**必须先调用 `skill` 工具加载该技能**，再按技能说明执行。
-- 技能是提示词，不是可执行工具。
-- 如果 `skills` 中已有**相似功能或描述**的技能，**在调用任何工具之前**必须先加载对应 skill 并阅读其 `SKILL.md`，获取说明、规范和经验，然后再按技能说明操作。
-- `skills` 位于 `./skills`，具体技能在 `./skills/<skill_name>`。
-- 要运行技能目录下的脚本或读取其文件，先切换到对应技能目录（或在 bash 中使用 `workdir` 指定目录），再用相对路径调用脚本（例如：在 `skills\\pptx` 下运行 `scripts\\html2pptx.js`）。执行完毕后切回工作目录。
-
-## 系统消息说明
-
-以 `【system commands】` 开头的是执行系统发来的消息，属于系统级提示，不是用户输入内容。
-
-## 资料搜集与报告生成流程
-
-1. 先用 `web_search` 查找来源
-2. 用 `web_fetch` 抓取正文
-3. 用 `quote_extract` 提取可引用片段
-4. 用 `source_compare` 做多来源一致性与分歧分析
-5. 用 `report_template` 生成报告结构
-6. 用 `cite_manager` 输出参考资料清单
-"""
+            "# LittleAngelBot System Prompt\n\n"
+            "你是 LittleAngelBot，一个工具优先的助手。"
+            "当任务需要事实或执行动作时，优先调用工具。\n\n"
+            "关键规则：\n"
+            "- 工具优先，结果可验证。\n"
+            "- 工具失败后要继续调整策略，不要直接放弃。\n"
+            "- 运行环境是 Windows，执行命令前先做安全判断。\n"
+            "- 当用户提到某个 skill 时，先调用 skill 工具加载说明，再执行。"
             + self._skills_summary()
         )
 
@@ -219,10 +237,9 @@ class LittleAngelBot:
             tool_names = []
 
         tools = []
-        for name in tool_names:
-            pass
-            # if name == "bash":
-            #     tools.append(BashTool())
+        for _name in tool_names:
+            _ = _name
+
         tools.append(BashTool(self.agent_root))
         tools.append(ReadTool(self.agent_root))
         tools.append(WriteFileTool(self.agent_root))
@@ -245,29 +262,38 @@ class LittleAngelBot:
         tools.append(ThinkingTool())
         return tools
 
-    def _bind_tool_user_context(self, user_id: str, cancel_checker=None) -> None:
+    def _bind_tool_user_context(self, user_id: str, session_path: str, cancel_checker=None) -> None:
         for tool in self.tools:
-            if hasattr(tool, "set_context"):
-                if isinstance(tool, ThinkingTool):
-                    continue
-                if isinstance(tool, AlarmTool):
+            if not hasattr(tool, "set_context"):
+                continue
+            if isinstance(tool, ThinkingTool):
+                continue
+            if isinstance(tool, AlarmTool):
+                tool.set_context(user_id, self._handle_system_message)
+            elif isinstance(tool, AskHumanTool):
+                tool.set_context(
+                    user_id,
+                    on_ask=self._handle_ask_human,
+                    cancel_checker=cancel_checker,
+                )
+            elif isinstance(tool, SubAgentTool):
+                tool.set_context(
+                    user_id=user_id,
+                    parent_context_path=session_path,
+                    on_trigger=self._handle_system_message,
+                )
+            else:
+                try:
                     tool.set_context(user_id, self._handle_system_message)
-                elif isinstance(tool, AskHumanTool):
-                    tool.set_context(
-                        user_id,
-                        on_ask=self._handle_ask_human,
-                        cancel_checker=cancel_checker,
-                    )
-                else:
-                    try:
-                        tool.set_context(user_id, self._handle_system_message)
-                    except TypeError:
-                        tool.set_context(user_id)
+                except TypeError:
+                    tool.set_context(user_id)
 
-    def _bind_thinking_context(self, context) -> None:
+    def _bind_thinking_context(self) -> None:
+        if self.context_manager is None:
+            return
         for tool in self.tools:
             if isinstance(tool, ThinkingTool):
-                tool.set_context(lambda ctx=context: ctx.get_messages())
+                tool.set_context(self.context_manager.get_messages)
                 break
 
     def _handle_system_message(self, user_id: str, content: str) -> Optional[str]:
@@ -288,7 +314,6 @@ class LittleAngelBot:
         if not hasattr(self, "_ask_handlers"):
             self._ask_handlers = {}
         self._ask_handlers[user_id] = handler
-
 
     def clear_ask_handler(self, user_id: str) -> None:
         if hasattr(self, "_ask_handlers"):
@@ -318,7 +343,7 @@ class LittleAngelBot:
         if not config_path or not os.path.exists(config_path):
             return {}
         try:
-            with open(config_path, "r", encoding="utf-8") as f:
-                return json.load(f)
+            with open(config_path, "r", encoding="utf-8") as handle:
+                return json.load(handle)
         except Exception:
             return {}

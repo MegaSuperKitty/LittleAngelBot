@@ -2,6 +2,7 @@
 """机器人入口：LittleAngelBot。"""
 import asyncio
 from collections import deque
+import json
 import os
 import threading
 import urllib.parse
@@ -23,6 +24,7 @@ HISTORY_DIR = os.path.join(BASE_DIR, "chat_history")
 AGENT_ROOT = os.getenv("LITTLE_ANGEL_AGENT_WORKSPACE", os.path.join(BASE_DIR, "agent_workspace"))
 os.makedirs(AGENT_ROOT, exist_ok=True)
 LOCAL_SECRETS_PATH = os.path.join(BASE_DIR, "local_secrets.yaml")
+CHANNEL_CONFIG_PATH = os.path.join(BASE_DIR, "angel_console", "data", "channels.json")
 
 
 def _load_local_secrets(path: str) -> dict:
@@ -40,6 +42,27 @@ def _load_local_secrets(path: str) -> dict:
 
 
 _LOCAL_SECRETS = _load_local_secrets(LOCAL_SECRETS_PATH)
+
+
+def _load_channel_settings(path: str, channel_name: str) -> dict:
+    if not os.path.isfile(path):
+        return {}
+    try:
+        with open(path, "r", encoding="utf-8") as handle:
+            data = json.load(handle) or {}
+        if not isinstance(data, dict):
+            return {}
+        channels = data.get("channels", data)
+        if not isinstance(channels, dict):
+            return {}
+        row = channels.get(channel_name, {})
+        return row if isinstance(row, dict) else {}
+    except Exception:
+        return {}
+
+
+_QQ_CHANNEL_SETTINGS = _load_channel_settings(CHANNEL_CONFIG_PATH, "qq")
+_QQ_CHANNEL_VALUES = _QQ_CHANNEL_SETTINGS.get("settings", {}) if isinstance(_QQ_CHANNEL_SETTINGS.get("settings"), dict) else {}
 
 
 def _get_secret(name: str, fallback: str = "") -> str:
@@ -62,12 +85,12 @@ LLM_API_KEY = _get_secret("LLM_API_KEY", "")
 LLM_BASE_URL = _get_secret("LLM_BASE_URL", "")
 # Example: LLM_MODEL = "gpt-4o-mini"
 LLM_MODEL = _get_secret("LLM_MODEL", "")
-# Example: LLM_PROVIDER = "openai|dashscope|siliconflow|anthropic"
+# Example: LLM_PROVIDER = "openai|anthropic|dashscope"
 LLM_PROVIDER = _get_secret("LLM_PROVIDER", "")
 # Example: BOTPY_APPID = "your_bot_appid"
-BOTPY_APPID = _get_secret("BOTPY_APPID", "")
+BOTPY_APPID = _get_secret("BOTPY_APPID", str(_QQ_CHANNEL_VALUES.get("app_id", "") or ""))
 # Example: BOTPY_SECRET = "your_bot_secret"
-BOTPY_SECRET = _get_secret("BOTPY_SECRET", "")
+BOTPY_SECRET = _get_secret("BOTPY_SECRET", str(_QQ_CHANNEL_VALUES.get("client_secret", "") or ""))
 
 # Push into env so tools can pick them up.
 if BRAVE_API_KEY and not os.getenv("BRAVE_API_KEY"):

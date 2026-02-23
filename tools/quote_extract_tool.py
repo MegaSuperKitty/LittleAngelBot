@@ -10,7 +10,20 @@ from tool import Tool
 
 
 class QuoteExtractTool(Tool):
+    """Represent the QuoteExtractTool component.
+    
+    Note:
+        This class currently exposes no documented instance attributes.
+    """
     def __init__(self):
+        """Initialize quote extract tool state and dependencies.
+        
+        Args:
+            None.
+        
+        Returns:
+            None: This method does not return a value.
+        """
         super().__init__(
             name="quote_extract",
             description="Extract key quotes/snippets from a text for citation.",
@@ -26,6 +39,17 @@ class QuoteExtractTool(Tool):
         )
 
     def _execute(self, **kwargs):
+        """Internal helper to execute.
+        
+        Args:
+            **kwargs (Any): Additional keyword arguments for extensibility.
+        
+        Returns:
+            Any: Result produced by this function.
+        
+        Note:
+            This is a private helper used internally by the module/class.
+        """
         text = (kwargs.get("text") or "").strip()
         if not text:
             return "没有可提取的文本。"
@@ -48,6 +72,17 @@ class QuoteExtractTool(Tool):
 
 
 def _split_sentences(text: str) -> List[str]:
+    """Internal helper to split sentences.
+    
+    Args:
+        text (str): Text content to process.
+    
+    Returns:
+        List[str]: Result produced by this function.
+    
+    Note:
+        This is a private helper used internally by the module/class.
+    """
     parts = re.split(r"(?<=[。！？.!?])\s+", text)
     if len(parts) == 1:
         parts = text.splitlines()

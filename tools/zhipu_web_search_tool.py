@@ -13,7 +13,24 @@ from tool import Tool
 
 
 class ZhipuWebSearchTool(Tool):
+    """Provide zhipu web search tool capabilities.
+    
+    Attributes:
+        _server_url (Any): Instance field for server url.
+        _api_key (Any): Instance field for api key.
+        _session_id (Optional[str]): Unique identifier used by the instance.
+        _tools_cache (Optional[List[Dict]]): Instance field for tools cache.
+        _rpc_id (int): Unique identifier used by the instance.
+    """
     def __init__(self):
+        """Initialize zhipu web search tool state and dependencies.
+        
+        Args:
+            None.
+        
+        Returns:
+            None: This method does not return a value.
+        """
         super().__init__(
             name="web_search_zhipu",
             description=(
@@ -56,6 +73,17 @@ class ZhipuWebSearchTool(Tool):
         self._rpc_id = 1
 
     def _execute(self, **kwargs):
+        """Internal helper to execute.
+        
+        Args:
+            **kwargs (Any): Additional keyword arguments for extensibility.
+        
+        Returns:
+            Any: Result produced by this function.
+        
+        Note:
+            This is a private helper used internally by the module/class.
+        """
         query = (kwargs.get("query") or "").strip()
         if not query:
             return "query 不能为空。"
@@ -77,6 +105,17 @@ class ZhipuWebSearchTool(Tool):
         return _format_results(result)
 
     def _ensure_session(self) -> None:
+        """Internal helper to ensure session.
+        
+        Args:
+            None.
+        
+        Returns:
+            None: This method does not return a value.
+        
+        Note:
+            This is a private helper used internally by the module/class.
+        """
         if self._session_id:
             return
         payload = {
@@ -93,6 +132,17 @@ class ZhipuWebSearchTool(Tool):
         self._session_id = headers.get("mcp-session-id")
 
     def _list_tools(self) -> List[Dict]:
+        """Internal helper to list tools.
+        
+        Args:
+            None.
+        
+        Returns:
+            List[Dict]: Result produced by this function.
+        
+        Note:
+            This is a private helper used internally by the module/class.
+        """
         if self._tools_cache is not None:
             return self._tools_cache
         payload = {
@@ -107,6 +157,18 @@ class ZhipuWebSearchTool(Tool):
         return tools
 
     def _call_tool(self, name: str, params: Dict) -> Dict:
+        """Internal helper to call tool.
+        
+        Args:
+            name (str): Input value for name.
+            params (Dict): Input value for params.
+        
+        Returns:
+            Dict: Result produced by this function.
+        
+        Note:
+            This is a private helper used internally by the module/class.
+        """
         payload = {
             "jsonrpc": "2.0",
             "method": "tools/call",
@@ -117,6 +179,21 @@ class ZhipuWebSearchTool(Tool):
         return data.get("result") or {}
 
     def _post(self, payload: Dict, session_id: Optional[str]) -> Tuple[Dict, Dict[str, str]]:
+        """Internal helper to post.
+        
+        Args:
+            payload (Dict): Input value for payload.
+            session_id (Optional[str]): Identifier for the session.
+        
+        Returns:
+            Tuple[Dict, Dict[str, str]]: Result produced by this function.
+        
+        Raises:
+            RuntimeError: Raised when an execution error occurs.
+        
+        Note:
+            This is a private helper used internally by the module/class.
+        """
         body = json.dumps(payload).encode("utf-8")
         req = urllib.request.Request(self._server_url, data=body, method="POST")
         req.add_header("Content-Type", "application/json")
@@ -139,12 +216,35 @@ class ZhipuWebSearchTool(Tool):
             raise RuntimeError(f"HTTP {exc.code}: {body_text}".strip()) from None
 
     def _next_id(self) -> int:
+        """Internal helper to next id.
+        
+        Args:
+            None.
+        
+        Returns:
+            int: Result produced by this function.
+        
+        Note:
+            This is a private helper used internally by the module/class.
+        """
         current = self._rpc_id
         self._rpc_id += 1
         return current
 
 
 def _pick_tool_name(engine: str, tools: List[Dict]) -> str:
+    """Internal helper to pick tool name.
+    
+    Args:
+        engine (str): Input value for engine.
+        tools (List[Dict]): Tool definitions or runtime tool bindings.
+    
+    Returns:
+        str: Result produced by this function.
+    
+    Note:
+        This is a private helper used internally by the module/class.
+    """
     names = {t.get("name") for t in tools or []}
     if engine in names:
         return engine
@@ -163,6 +263,23 @@ def _build_params(
     tools: List[Dict],
     tool_name: str,
 ) -> Dict:
+    """Internal helper to build params.
+    
+    Args:
+        query (str): Input value for query.
+        top_k (Optional[int]): Input value for top k.
+        recency (str): Input value for recency.
+        domains (List[str]): Input value for domains.
+        summary_level (str): Input value for summary level.
+        tools (List[Dict]): Tool definitions or runtime tool bindings.
+        tool_name (str): Input value for tool name.
+    
+    Returns:
+        Dict: Result produced by this function.
+    
+    Note:
+        This is a private helper used internally by the module/class.
+    """
     params = {"query": query}
     if top_k:
         params["count"] = int(top_k)
@@ -199,6 +316,17 @@ def _build_params(
 
 
 def _format_results(result: Dict) -> str:
+    """Internal helper to format results.
+    
+    Args:
+        result (Dict): Input value for result.
+    
+    Returns:
+        str: Result produced by this function.
+    
+    Note:
+        This is a private helper used internally by the module/class.
+    """
     if not result:
         return "未返回结果。"
     content = result.get("content")
@@ -218,6 +346,17 @@ def _format_results(result: Dict) -> str:
 
 
 def _try_parse_json(text):
+    """Internal helper to try parse json.
+    
+    Args:
+        text (Any): Text content to process.
+    
+    Returns:
+        Any: Result produced by this function.
+    
+    Note:
+        This is a private helper used internally by the module/class.
+    """
     if not text:
         return None
     if isinstance(text, (dict, list)):
@@ -231,6 +370,17 @@ def _try_parse_json(text):
 
 
 def _format_from_json(data) -> str:
+    """Internal helper to format from json.
+    
+    Args:
+        data (Any): Input value for data.
+    
+    Returns:
+        str: Result produced by this function.
+    
+    Note:
+        This is a private helper used internally by the module/class.
+    """
     results = []
     if isinstance(data, dict):
         for key in ("results", "data", "items", "list"):
@@ -256,6 +406,21 @@ def _format_from_json(data) -> str:
 
 
 def _parse_mcp_response(raw: str, headers: Dict[str, str]) -> Dict:
+    """Internal helper to parse mcp response.
+    
+    Args:
+        raw (str): Input value for raw.
+        headers (Dict[str, str]): Input value for headers.
+    
+    Returns:
+        Dict: Result produced by this function.
+    
+    Raises:
+        RuntimeError: Raised when an execution error occurs.
+    
+    Note:
+        This is a private helper used internally by the module/class.
+    """
     if not raw:
         raise RuntimeError("Empty response body from MCP server.")
     content_type = (headers.get("content-type") or "").lower()
@@ -277,6 +442,17 @@ def _parse_mcp_response(raw: str, headers: Dict[str, str]) -> Dict:
 
 
 def _parse_sse_events(raw: str) -> List[Dict[str, str]]:
+    """Internal helper to parse sse events.
+    
+    Args:
+        raw (str): Input value for raw.
+    
+    Returns:
+        List[Dict[str, str]]: Result produced by this function.
+    
+    Note:
+        This is a private helper used internally by the module/class.
+    """
     events: List[Dict[str, str]] = []
     current: Dict[str, str] = {}
     for line in raw.splitlines():
@@ -296,6 +472,17 @@ def _parse_sse_events(raw: str) -> List[Dict[str, str]]:
 
 
 def _auth_header_value(api_key: str) -> str:
+    """Internal helper to auth header value.
+    
+    Args:
+        api_key (str): Input value for api key.
+    
+    Returns:
+        str: Result produced by this function.
+    
+    Note:
+        This is a private helper used internally by the module/class.
+    """
     mode = (os.getenv("ZHIPU_MCP_AUTH_MODE") or "").strip().lower()
     if api_key.lower().startswith("bearer "):
         return api_key
