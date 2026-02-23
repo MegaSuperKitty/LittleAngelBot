@@ -13,9 +13,21 @@ from .path_utils import normalize_root, resolve_relative_path, require_existing_
 
 
 class BashTool(Tool):
-    """执行 PowerShell 命令并返回输出。"""
+    """执行 PowerShell 命令并返回输出。.
+    
+    Attributes:
+        _agent_root (Any): Instance field for agent root.
+    """
 
     def __init__(self, agent_root: Optional[str] = None):
+        """Initialize bash tool state and dependencies.
+        
+        Args:
+            agent_root (Optional[str]): Filesystem path used by this operation.
+        
+        Returns:
+            None: This method does not return a value.
+        """
         self._agent_root = normalize_root(agent_root or os.getcwd())
         super().__init__(
             name="bash",
@@ -40,6 +52,18 @@ class BashTool(Tool):
         )
 
     def _execute(self, command: str, workdir: str = None):
+        """Internal helper to execute.
+        
+        Args:
+            command (str): Input value for command.
+            workdir (str): Input value for workdir.
+        
+        Returns:
+            Any: Result produced by this function.
+        
+        Note:
+            This is a private helper used internally by the module/class.
+        """
         if is_risky_command(command):
             return "不允许进行高危操作：检测到可能删除或修改文件的命令。"
         if contains_path_escape(command):
@@ -67,6 +91,17 @@ class BashTool(Tool):
         return output
 
     def _resolve_workdir(self, workdir: Optional[str]) -> str:
+        """Internal helper to resolve workdir.
+        
+        Args:
+            workdir (Optional[str]): Input value for workdir.
+        
+        Returns:
+            str: Result produced by this function.
+        
+        Note:
+            This is a private helper used internally by the module/class.
+        """
         try:
             return resolve_relative_path(self._agent_root, workdir)
         except ValueError:

@@ -12,7 +12,20 @@ from tool import Tool
 
 
 class WebFetchTool(Tool):
+    """Represent the WebFetchTool component.
+    
+    Note:
+        This class currently exposes no documented instance attributes.
+    """
     def __init__(self):
+        """Initialize web fetch tool state and dependencies.
+        
+        Args:
+            None.
+        
+        Returns:
+            None: This method does not return a value.
+        """
         super().__init__(
             name="web_fetch",
             description="Fetch a web page and extract text (no JS execution).",
@@ -27,6 +40,17 @@ class WebFetchTool(Tool):
         )
 
     def _execute(self, **kwargs):
+        """Internal helper to execute.
+        
+        Args:
+            **kwargs (Any): Additional keyword arguments for extensibility.
+        
+        Returns:
+            Any: Result produced by this function.
+        
+        Note:
+            This is a private helper used internally by the module/class.
+        """
         url = (kwargs.get("url") or "").strip()
         max_chars = int(kwargs.get("max_chars") or 5000)
         if not _is_safe_url(url):
@@ -45,6 +69,17 @@ class WebFetchTool(Tool):
 
 
 def _is_safe_url(url: str) -> bool:
+    """Internal helper to is safe url.
+    
+    Args:
+        url (str): Input value for url.
+    
+    Returns:
+        bool: Result produced by this function.
+    
+    Note:
+        This is a private helper used internally by the module/class.
+    """
     try:
         parsed = urllib.parse.urlparse(url)
     except Exception:
@@ -66,19 +101,59 @@ def _is_safe_url(url: str) -> bool:
 
 
 class _TextExtractor(HTMLParser):
+    """Represent the TextExtractor component.
+    
+    Attributes:
+        _parts (Any): Instance field for parts.
+    """
     def __init__(self):
+        """Initialize text extractor state and dependencies.
+        
+        Args:
+            None.
+        
+        Returns:
+            None: This method does not return a value.
+        """
         super().__init__()
         self._parts = []
 
     def handle_data(self, data):
+        """Handle data.
+        
+        Args:
+            data (Any): Input value for data.
+        
+        Returns:
+            None: This method does not return a value.
+        """
         if data:
             self._parts.append(data)
 
     def get_text(self) -> str:
+        """Get text.
+        
+        Args:
+            None.
+        
+        Returns:
+            str: The resolved text value.
+        """
         return " ".join(self._parts)
 
 
 def _html_to_text(html: str) -> str:
+    """Internal helper to html to text.
+    
+    Args:
+        html (str): Input value for html.
+    
+    Returns:
+        str: Result produced by this function.
+    
+    Note:
+        This is a private helper used internally by the module/class.
+    """
     parser = _TextExtractor()
     parser.feed(html)
     text = parser.get_text()

@@ -11,6 +11,14 @@ from jinja2 import Environment, FileSystemLoader
 
 
 def main() -> int:
+    """Main.
+    
+    Args:
+        None.
+    
+    Returns:
+        int: Result produced by this function.
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument("--md", required=True, help="Input Markdown file")
     parser.add_argument("--out", required=True, help="Output HTML path")

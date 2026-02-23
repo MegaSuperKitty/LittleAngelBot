@@ -1,18 +1,25 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 """Sub-agent tool: run a temporary ReAct agent with a limited skill set."""
 
-from typing import List, Optional
+from typing import Callable, List, Optional
+import os
+import time
 
 from ReAct import ReActAgent
+from context import ReActContextManager
 from tool import Tool
 from .skill_tool import SkillTool
 from skill_registry import SkillRegistry
 
 
 class SubAgentTool(Tool):
-    def __init__(self, available_tools: List[object], skill_registry: SkillRegistry):
+    def __init__(self, available_tools: List[object], skill_registry: SkillRegistry, max_steps: int = 8):
         self.available_tools = available_tools
         self.skill_registry = skill_registry
+        self.max_steps = max_steps
+        self._user_id: Optional[str] = None
+        self._parent_context_path: Optional[str] = None
+        self._on_trigger: Optional[Callable[[str, str], None]] = None
         super().__init__(
             name="sub_agent",
             description=(
@@ -36,22 +43,40 @@ class SubAgentTool(Tool):
             },
         )
 
+    def set_context(
+        self,
+        user_id: str,
+        parent_context_path: Optional[str] = None,
+        on_trigger: Optional[Callable[[str, str], None]] = None,
+    ) -> None:
+        self._user_id = user_id
+        self._parent_context_path = parent_context_path
+        self._on_trigger = on_trigger
+
     def _execute(self, task_description: str, skills: Optional[List[str]] = None):
         task = (task_description or "").strip()
         if not task:
             return "SubAgent error: task_description is required."
+        if not self._parent_context_path:
+            return "SubAgent error: parent context path is missing."
 
         allowlist = _normalize_skills(skills)
         tools = _prepare_tools(self.available_tools, self.skill_registry, allowlist)
 
-        agent = ReActAgent()
-        agent.system_prompt = _sub_agent_prompt()
-        history = [{"role": "user", "content": task}]
-        result, _ = agent.run(history, tools=tools)
+        sub_context_path = _build_sub_context_path(self._parent_context_path)
+        context_manager = ReActContextManager(context_path=sub_context_path)
+        context_manager.append_message({"role": "user", "content": task})
+
+        agent = ReActAgent(
+            max_steps=self.max_steps,
+            context_manager=context_manager,
+            system_prompt=_sub_agent_prompt(),
+        )
+        result, _ = agent.run(tools=tools)
         return result
 
 
-def _normalize_skills(skills: Optional[List[str]]) -> Optional[List[str]]:
+def _normalize_skills(skills: Optional[List[str]]) -> List[str]:
     if skills is None:
         return []
     if isinstance(skills, list):
@@ -61,18 +86,27 @@ def _normalize_skills(skills: Optional[List[str]]) -> Optional[List[str]]:
 
 def _prepare_tools(available_tools: List[object], registry: SkillRegistry, allowlist: Optional[List[str]]):
     tools = []
-    skill_tool = None
     for tool in available_tools or []:
         if getattr(tool, "name", "") == "sub_agent":
             continue
         if isinstance(tool, SkillTool):
-            skill_tool = tool
             continue
         tools.append(tool)
-    if allowlist is None:
-        allowlist = []
-    tools.append(SkillTool(registry, allowed_skills=allowlist))
+
+    allowed = allowlist or []
+    tools.append(SkillTool(registry, allowed_skills=allowed))
     return tools
+
+
+def _build_sub_context_path(parent_context_path: str) -> str:
+    base, ext = os.path.splitext(parent_context_path)
+    suffix = time.strftime("%Y%m%d_%H%M%S", time.localtime())
+    path = f"{base}-sub{suffix}{ext or '.json'}"
+    index = 1
+    while os.path.exists(path):
+        path = f"{base}-sub{suffix}-{index}{ext or '.json'}"
+        index += 1
+    return path
 
 
 def _sub_agent_prompt() -> str:

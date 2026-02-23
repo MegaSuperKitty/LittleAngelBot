@@ -11,7 +11,23 @@ from tool import Tool
 
 
 class AskHumanTool(Tool):
+    """Represent the AskHumanTool component.
+    
+    Attributes:
+        _manager (AskHumanManager): Instance field for manager.
+        _active_user_id (Optional[str]): Unique identifier used by the instance.
+        _ask_handler (Optional[Callable[[str, str], None]]): Instance field for ask handler.
+        _cancel_checker (Optional[Callable[[], bool]]): Instance field for cancel checker.
+    """
     def __init__(self, manager: "AskHumanManager"):
+        """Initialize ask human tool state and dependencies.
+        
+        Args:
+            manager (AskHumanManager): Input value for manager.
+        
+        Returns:
+            None: This method does not return a value.
+        """
         self._manager = manager
         self._active_user_id: Optional[str] = None
         self._ask_handler: Optional[Callable[[str, str], None]] = None
@@ -37,6 +53,16 @@ class AskHumanTool(Tool):
         on_ask: Optional[Callable[[str, str], None]] = None,
         cancel_checker: Optional[Callable[[], bool]] = None,
     ):
+        """Set context.
+        
+        Args:
+            user_id (str): Identifier for the user.
+            on_ask (Optional[Callable[[str, str], None]]): Input value for on ask.
+            cancel_checker (Optional[Callable[[], bool]]): Callable that returns True when execution should stop.
+        
+        Returns:
+            None: This method does not return a value.
+        """
         self._active_user_id = user_id
         if on_ask is not None:
             self._ask_handler = on_ask
@@ -44,6 +70,17 @@ class AskHumanTool(Tool):
             self._cancel_checker = cancel_checker
 
     def _execute(self, **kwargs):
+        """Internal helper to execute.
+        
+        Args:
+            **kwargs (Any): Additional keyword arguments for extensibility.
+        
+        Returns:
+            Any: Result produced by this function.
+        
+        Note:
+            This is a private helper used internally by the module/class.
+        """
         question = (kwargs.get("question") or "").strip()
         if not question:
             return "AskHuman error: question is required."
@@ -58,11 +95,33 @@ class AskHumanTool(Tool):
 
 
 class AskHumanManager:
+    """Represent the AskHumanManager component.
+    
+    Attributes:
+        _lock (Any): Instance field for lock.
+        _pending (Dict[str, Dict[str, object]]): Instance field for pending.
+    """
     def __init__(self):
+        """Initialize ask human manager state and dependencies.
+        
+        Args:
+            None.
+        
+        Returns:
+            None: This method does not return a value.
+        """
         self._lock = threading.Lock()
         self._pending: Dict[str, Dict[str, object]] = {}
 
     def has_pending(self, user_id: str) -> bool:
+        """Has pending.
+        
+        Args:
+            user_id (str): Identifier for the user.
+        
+        Returns:
+            bool: True when the condition is satisfied; otherwise False.
+        """
         with self._lock:
             return user_id in self._pending
 
@@ -73,6 +132,17 @@ class AskHumanManager:
         on_ask: Optional[Callable[[str, str], None]] = None,
         cancel_checker: Optional[Callable[[], bool]] = None,
     ) -> str:
+        """Ask.
+        
+        Args:
+            user_id (str): Identifier for the user.
+            question (str): Input value for question.
+            on_ask (Optional[Callable[[str, str], None]]): Input value for on ask.
+            cancel_checker (Optional[Callable[[], bool]]): Callable that returns True when execution should stop.
+        
+        Returns:
+            str: Result produced by this function.
+        """
         event = threading.Event()
         with self._lock:
             self._pending[user_id] = {
@@ -97,6 +167,15 @@ class AskHumanManager:
         return "" if response is None else str(response).strip()
 
     def provide(self, user_id: str, response: str) -> bool:
+        """Provide.
+        
+        Args:
+            user_id (str): Identifier for the user.
+            response (str): Input value for response.
+        
+        Returns:
+            bool: Result produced by this function.
+        """
         with self._lock:
             data = self._pending.get(user_id)
             if not data:
@@ -107,6 +186,14 @@ class AskHumanManager:
         return True
 
     def cancel(self, user_id: str) -> None:
+        """Cancel.
+        
+        Args:
+            user_id (str): Identifier for the user.
+        
+        Returns:
+            None: This method does not return a value.
+        """
         with self._lock:
             data = self._pending.get(user_id)
             if not data:

@@ -1,49 +1,76 @@
 # -*- coding: utf-8 -*-
-"""ReAct 代理与工具调用循环。"""
+"""ReAct agent implementation with context-direct writes and 4 hooks."""
 
-from typing import Dict, List, Optional, Tuple
+from dataclasses import dataclass, field
+from typing import Any, Callable, Dict, List, Optional, Tuple
 from concurrent.futures import ThreadPoolExecutor
 import math
-from context import ContextWindowManager
+import time
+
+from context import ReActContextManager
 from llm_provider import get_response
 
 
+@dataclass
+class ReActHookEvent:
+    """Hook event payload."""
+
+    step: int
+    phase: str
+    tool_name: str = ""
+    message: Optional[Dict[str, Any]] = None
+    messages: List[Dict[str, Any]] = field(default_factory=list)
+    system_prompt: str = ""
+    messages_count: int = 0
+    timestamp: float = 0.0
+    extra: Dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
+class ReActHooks:
+    """Only 4 hooks: LLM before/after and tool before/after."""
+
+    before_llm: Optional[Callable[[ReActHookEvent], Optional[Tuple[List[Dict[str, Any]], str]]]] = None
+    after_llm: Optional[Callable[[ReActHookEvent], Optional[Tuple[List[Dict[str, Any]], str]]]] = None
+    before_tool: Optional[Callable[[ReActHookEvent], Optional[Tuple[List[Dict[str, Any]], str]]]] = None
+    after_tool: Optional[Callable[[ReActHookEvent], Optional[Tuple[List[Dict[str, Any]], str]]]] = None
+
+
 class ReActAgent:
-    """最小可用的工具调用循环。"""
+    """Minimal synchronous ReAct agent."""
 
     def __init__(
         self,
         max_steps: int = 20,
-        context_manager: Optional[ContextWindowManager] = None,
+        context_manager: Optional[ReActContextManager] = None,
         max_context_tokens: int = 60000,
         min_keep_messages: int = 6,
-        summarizer=None,
+        system_prompt: Optional[str] = None,
+        hooks: Optional[ReActHooks] = None,
+        hook_error_mode: str = "isolate",
     ):
-        """初始化 ReAct 代理。
-
-        Args:
-            max_steps: 迭代上限。
-        """
         self.max_steps = max_steps
-        self.context_manager = context_manager or ContextWindowManager(
+        self.context_manager = context_manager or ReActContextManager(
             max_tokens=max_context_tokens,
             min_keep=min_keep_messages,
         )
-        self.summarizer = summarizer
-        self.system_prompt = (
+        default_system_prompt = (
             "你是一个能调用工具的助手。"
             "如有必要请优先调用工具获取信息，然后给出简洁明确的回复。"
+            "如果你要调用工具，必须在content字段写明调用工具的原因，不允许直接调用工具。"
         )
+        self.system_prompt = system_prompt or default_system_prompt
+        self.hooks = hooks or ReActHooks()
+        self.hook_error_mode = hook_error_mode if hook_error_mode in {"isolate", "strict"} else "isolate"
 
-    def run(self, history: List[Dict[str, str]], tools=None, cancel_checker=None):
-        """基于对话历史运行工具调用循环并返回最终回答与新增消息。"""
+    def run(self, tools=None, cancel_checker=None) -> Tuple[str, List[Dict[str, str]]]:
+        """Execute ReAct loop.
+
+        Returns:
+            Tuple[str, List[Dict[str, str]]]: `(final_text, [])` for compatibility.
+        """
         tool_specs, tool_map = self._normalize_tools(tools)
-        context = history if hasattr(history, "get_messages") else None
-        history_messages = context.get_history_messages() if context else history
-        messages = [{"role": "system", "content": self.system_prompt}] + (history_messages or [])
-        if context:
-            context.set_runtime_messages(messages)
-        new_messages: List[Dict[str, str]] = []
+        runtime_system_prompt = self.system_prompt
         step_count = 0
         tool_call_count = 0
         tool_events: List[Dict[str, str]] = []
@@ -52,58 +79,199 @@ class ReActAgent:
             step_count += 1
             if cancel_checker and cancel_checker():
                 return "", []
-            triggered_by_non_assistant = messages and messages[-1].get("role") != "assistant"
-            messages = self.context_manager.compress_messages(
-                messages,
-                summarizer=self.summarizer,
-                preserve_system=True,
-                triggered_by_non_assistant=triggered_by_non_assistant,
-            )
-            if context:
-                context.set_runtime_messages(messages)
-            message = get_response(messages, tools=tool_specs, stream=False)
-            tool_calls = getattr(message, "tool_calls", None)
 
-            if tool_calls:
-                assistant_msg = self._assistant_message_with_tool_calls(message)
-                messages.append(assistant_msg)
-                new_messages.append(assistant_msg)
-                tool_results = self._run_tool_calls_parallel(tool_calls, tool_map)
-                for call, tool_result in zip(tool_calls, tool_results):
-                    if cancel_checker and cancel_checker():
-                        return "", []
-                    tool_name = call.function.name
-                    if tool_name != "skill":
-                        tool_result = self.context_manager.normalize_tool_output(tool_result)
-                    tool_call_count += 1
-                    tool_events.append(self._summarize_tool_event(tool_name, tool_result))
-                    tool_msg = {
-                        "role": "tool",
-                        "tool_call_id": call.id,
-                        "name": tool_name,
-                        "content": tool_result,
-                    }
-                    messages.append(tool_msg)
-                    new_messages.append(tool_msg)
-                continue
+            # Hook 1: before_llm
+            if self._has_hook("before_llm"):
+                messages = self.context_manager.get_messages()
+                messages, runtime_system_prompt = self._emit_hook(
+                    "before_llm",
+                    ReActHookEvent(
+                        step=step_count,
+                        phase="before_llm",
+                        message=messages[-1] if messages else None,
+                        messages=messages,
+                        system_prompt=runtime_system_prompt,
+                        messages_count=len(messages),
+                        timestamp=time.time(),
+                        extra={"tools_count": len(tool_specs)},
+                    ),
+                    messages,
+                    runtime_system_prompt,
+                )
+                self.context_manager.set_messages(messages)
 
-            final_text = (message.content or "").strip()
-            assistant_msg = {"role": "assistant", "content": final_text}
-            messages.append(assistant_msg)
-            new_messages.append(assistant_msg)
-            return final_text, new_messages
+            messages = self.context_manager.get_messages()
+            llm_messages = [{"role": "system", "content": runtime_system_prompt}] + messages
+            message = get_response(llm_messages, tools=tool_specs, stream=False)
+            tool_calls = getattr(message, "tool_calls", None) or []
+            llm_message = self._assistant_message_with_tool_calls(message)
+            if not llm_message.get("tool_calls"):
+                llm_message.pop("tool_calls", None)
+
+            # Always append LLM message before after_llm hook.
+            self.context_manager.append_message(llm_message)
+
+            # Hook 2: after_llm
+            if self._has_hook("after_llm"):
+                messages = self.context_manager.get_messages()
+                messages, runtime_system_prompt = self._emit_hook(
+                    "after_llm",
+                    ReActHookEvent(
+                        step=step_count,
+                        phase="after_llm",
+                        message=messages[-1] if messages else llm_message,
+                        messages=messages,
+                        system_prompt=runtime_system_prompt,
+                        messages_count=len(messages),
+                        timestamp=time.time(),
+                        extra={
+                            "has_tool_calls": bool(tool_calls),
+                            "tool_calls_count": len(tool_calls),
+                        },
+                    ),
+                    messages,
+                    runtime_system_prompt,
+                )
+                self.context_manager.set_messages(messages)
+
+            messages = self.context_manager.get_messages()
+            if not tool_calls:
+                final_text = str((messages[-1].get("content") if messages else (message.content or "")) or "").strip()
+                return final_text, []
+
+            for call in tool_calls:
+                if cancel_checker and cancel_checker():
+                    return "", []
+                # Hook 3: before_tool in order.
+                if self._has_hook("before_tool"):
+                    current_messages = self.context_manager.get_messages()
+                    current_messages, runtime_system_prompt = self._emit_hook(
+                        "before_tool",
+                        ReActHookEvent(
+                            step=step_count,
+                            phase="before_tool",
+                            tool_name=call.function.name,
+                            message=current_messages[-1] if current_messages else None,
+                            messages=current_messages,
+                            system_prompt=runtime_system_prompt,
+                            messages_count=len(current_messages),
+                            timestamp=time.time(),
+                            extra={
+                                "tool_call_id": call.id,
+                                "arguments": call.function.arguments,
+                            },
+                        ),
+                        current_messages,
+                        runtime_system_prompt,
+                    )
+                    self.context_manager.set_messages(current_messages)
+
+            if cancel_checker and cancel_checker():
+                return "", []
+
+            # Tool execution in parallel.
+            tool_results = self._run_tool_calls_parallel(tool_calls, tool_map)
+
+            # Process results and after_tool hooks in call order.
+            for call, tool_result in zip(tool_calls, tool_results):
+                if cancel_checker and cancel_checker():
+                    return "", []
+                tool_name = call.function.name
+                tool_call_count += 1
+                tool_events.append(self._summarize_tool_event(tool_name, tool_result))
+                tool_msg = {
+                    "role": "tool",
+                    "tool_call_id": call.id,
+                    "name": tool_name,
+                    "content": tool_result,
+                }
+                self.context_manager.append_message(tool_msg)
+
+                # Hook 4: after_tool.
+                if self._has_hook("after_tool"):
+                    current_messages = self.context_manager.get_messages()
+                    current_messages, runtime_system_prompt = self._emit_hook(
+                        "after_tool",
+                        ReActHookEvent(
+                            step=step_count,
+                            phase="after_tool",
+                            tool_name=tool_name,
+                            message=current_messages[-1] if current_messages else tool_msg,
+                            messages=current_messages,
+                            system_prompt=runtime_system_prompt,
+                            messages_count=len(current_messages),
+                            timestamp=time.time(),
+                            extra={
+                                "tool_call_id": call.id,
+                                "result_preview": str(tool_result)[:200],
+                                "error": str(tool_result).lower().startswith("tool error"),
+                            },
+                        ),
+                        current_messages,
+                        runtime_system_prompt,
+                    )
+                    self.context_manager.set_messages(current_messages)
+            continue
 
         final_text = self._build_max_steps_reply(
             step_count=step_count,
             tool_call_count=tool_call_count,
             tool_events=tool_events,
         )
-        assistant_msg = {"role": "assistant", "content": final_text}
-        new_messages.append(assistant_msg)
-        return final_text, new_messages
+        self.context_manager.append_message({"role": "assistant", "content": final_text})
+        return final_text, []
+
+    def _has_hook(self, hook_name: str) -> bool:
+        return getattr(self.hooks, hook_name, None) is not None
+
+    def _emit_hook(
+        self,
+        hook_name: str,
+        event: ReActHookEvent,
+        messages: List[Dict[str, Any]],
+        system_prompt: str,
+    ) -> Tuple[List[Dict[str, Any]], str]:
+        callback = getattr(self.hooks, hook_name, None)
+        if callback is None:
+            return messages, system_prompt
+        try:
+            updated = callback(event)
+            if updated is None:
+                return messages, system_prompt
+            if not (isinstance(updated, tuple) and len(updated) == 2):
+                raise ValueError(f"Hook '{hook_name}' must return (messages, system_prompt) or None.")
+            updated_messages, updated_system_prompt = updated
+            normalized_messages = self._validate_messages(updated_messages, hook_name=hook_name)
+            normalized_system_prompt = str(updated_system_prompt or "")
+            return normalized_messages, normalized_system_prompt
+        except Exception:
+            if self.hook_error_mode == "strict":
+                raise
+        return messages, system_prompt
+
+    def _validate_messages(self, messages: Any, hook_name: str = "") -> List[Dict[str, Any]]:
+        if not isinstance(messages, list):
+            raise ValueError(f"Hook '{hook_name}' returned invalid messages type: {type(messages)}")
+        normalized: List[Dict[str, Any]] = []
+        valid_roles = {"system", "user", "assistant", "tool"}
+        for idx, message in enumerate(messages):
+            if not isinstance(message, dict):
+                raise ValueError(f"Hook '{hook_name}' message[{idx}] must be dict.")
+            role = message.get("role")
+            if not isinstance(role, str) or role not in valid_roles:
+                raise ValueError(f"Hook '{hook_name}' message[{idx}] has invalid role: {role}")
+            normalized_message = dict(message)
+            if "content" not in normalized_message or normalized_message["content"] is None:
+                normalized_message["content"] = ""
+            elif not isinstance(normalized_message["content"], str):
+                normalized_message["content"] = str(normalized_message["content"])
+            if role == "assistant" and "tool_calls" in normalized_message:
+                if not isinstance(normalized_message["tool_calls"], list):
+                    raise ValueError(f"Hook '{hook_name}' assistant message[{idx}] tool_calls must be list.")
+            normalized.append(normalized_message)
+        return normalized
 
     def _normalize_tools(self, tools) -> Tuple[List[Dict], Dict[str, object]]:
-        """把 Tool 实例转换为 OpenAI tools，并构建可执行映射。"""
         tool_specs: List[Dict] = []
         tool_map: Dict[str, object] = {}
         for tool in tools or []:
@@ -115,9 +283,8 @@ class ReActAgent:
         return tool_specs, tool_map
 
     def _assistant_message_with_tool_calls(self, message) -> Dict:
-        """把 SDK 的 message 转成 messages 格式。"""
         tool_calls = []
-        for call in message.tool_calls:
+        for call in getattr(message, "tool_calls", None) or []:
             tool_calls.append(
                 {
                     "id": call.id,
@@ -135,7 +302,6 @@ class ReActAgent:
         }
 
     def _run_tool_call(self, call, tool_map: Dict[str, object]) -> str:
-        """执行单个工具调用。"""
         name = call.function.name
         arguments = call.function.arguments
         tool = tool_map.get(name)
@@ -147,7 +313,6 @@ class ReActAgent:
             return f"Tool error: {exc}"
 
     def _run_tool_calls_parallel(self, tool_calls, tool_map: Dict[str, object]) -> List[str]:
-        """并行执行工具调用，保持输入顺序返回结果。"""
         if not tool_calls:
             return []
         max_workers = min(8, len(tool_calls))
@@ -172,16 +337,6 @@ class ReActAgent:
         }
 
     def _extract_long_output_path(self, text: str) -> str:
-        legacy_marker = "超长被放到了（"
-        if legacy_marker in text:
-            start = text.find(legacy_marker) + len(legacy_marker)
-            end = text.find("）", start)
-            if end == -1:
-                end = text.find(")", start)
-            if end == -1:
-                return ""
-            return text[start:end].strip()
-
         new_marker = "Tool output too long. Stored at: "
         if new_marker in text:
             start = text.find(new_marker) + len(new_marker)
@@ -194,17 +349,17 @@ class ReActAgent:
     def _build_max_steps_reply(self, step_count: int, tool_call_count: int, tool_events: List[Dict[str, str]]) -> str:
         summary = self._build_progress_summary(tool_events, max_tokens=200)
         lines = [
-            f"已达到最大 {self.max_steps} 步执行（max_steps={self.max_steps}）。",
+            f"已达到最大 {self.max_steps} 步执行限制（max_steps={self.max_steps}）。",
             f"本次已执行 {step_count} 步 / 工具调用 {tool_call_count} 次。",
             "",
-            "过程摘要（≤200 tokens）：",
+            "过程摘要（<=200 tokens）：",
             summary,
             "",
             "未完成：",
             "- 尚未完成最终汇总与输出。",
             "",
             "需要你帮助：",
-            "- 请补充关键缺失信息或确认是否继续执行（回复“继续”也可以）。",
+            "- 请补充关键信息或确认是否继续执行（回复‘继续’即可）。",
         ]
         return "\n".join(lines)
 
@@ -241,7 +396,7 @@ class ReActAgent:
         tools_str = "、".join(tools[:4]) + (" 等" if len(tools) > 4 else "")
         action_str = "、".join(actions) if actions else "处理中间步骤"
         parts = [
-            f"已完成{action_str}（涉及 {tools_str}），并对结果做了初步处理。"
+            f"已完成{action_str}（涉及 {tools_str}），并对结果做了初步处理。",
         ]
 
         if long_paths:
@@ -268,7 +423,7 @@ class ReActAgent:
                 hi = mid
         cut = max(0, lo - 1)
         trimmed = text[:cut].rstrip()
-        if trimmed and trimmed[-1] not in "。.!?":
+        if trimmed and trimmed[-1] not in "。?!?":
             trimmed += "..."
         return trimmed
 

@@ -13,6 +13,16 @@ from reportlab.pdfgen import canvas
 
 
 def make_stamp(text: str, width: float, height: float) -> BytesIO:
+    """Make stamp.
+    
+    Args:
+        text (str): Text content to process.
+        width (float): Input value for width.
+        height (float): Input value for height.
+    
+    Returns:
+        BytesIO: Result produced by this function.
+    """
     packet = BytesIO()
     c = canvas.Canvas(packet, pagesize=(width, height))
     c.setFont("Helvetica", 24)
@@ -28,6 +38,14 @@ def make_stamp(text: str, width: float, height: float) -> BytesIO:
 
 
 def main() -> int:
+    """Main.
+    
+    Args:
+        None.
+    
+    Returns:
+        int: Result produced by this function.
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument("--in", dest="inp", required=True, help="Input PDF")
     parser.add_argument("--out", required=True, help="Output PDF")

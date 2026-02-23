@@ -37,11 +37,27 @@ _ABS_PATH_PATTERNS = [
 
 
 def is_risky_command(command: str) -> bool:
+    """Is risky command.
+    
+    Args:
+        command (str): Input value for command.
+    
+    Returns:
+        bool: True when the condition is satisfied; otherwise False.
+    """
     text = (command or "").lower()
     return any(keyword in text for keyword in _RISKY_KEYWORDS)
 
 
 def contains_path_escape(command: str) -> bool:
+    """Contains path escape.
+    
+    Args:
+        command (str): Input value for command.
+    
+    Returns:
+        bool: Result produced by this function.
+    """
     text = command or ""
     if "..\\" in text or "../" in text:
         return True

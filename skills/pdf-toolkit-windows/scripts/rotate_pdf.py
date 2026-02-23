@@ -10,6 +10,14 @@ from pypdf import PdfReader, PdfWriter
 
 
 def main() -> int:
+    """Main.
+    
+    Args:
+        None.
+    
+    Returns:
+        int: Result produced by this function.
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument("--in", dest="inp", required=True, help="Input PDF")
     parser.add_argument("--out", required=True, help="Output PDF")

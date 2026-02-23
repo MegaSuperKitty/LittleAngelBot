@@ -1,5 +1,7 @@
-# -*- coding: utf-8 -*-
-"""闹钟工具：仅支持固定日期时间。"""
+﻿# -*- coding: utf-8 -*-
+"""Alarm tool for scheduling a one-shot system callback at an absolute time."""
+
+from __future__ import annotations
 
 from datetime import datetime
 import threading
@@ -9,7 +11,23 @@ from tool import Tool
 
 
 class AlarmTool(Tool):
+    """Schedule alarm callbacks that re-enter the bot through system messages.
+    
+    Attributes:
+        _on_trigger (Optional[Callable[[str, str], None]]): Instance field for on trigger.
+        _active_user_id (Optional[str]): Unique identifier used by the instance.
+        _timers (Dict[str, threading.Timer]): Instance field for timers.
+    """
+
     def __init__(self, on_trigger: Optional[Callable[[str, str], None]] = None):
+        """Initialize tool configuration and callback bindings.
+        
+        Args:
+            on_trigger (Optional[Callable[[str, str], None]]): Input value for on trigger.
+        
+        Returns:
+            None: This method does not return a value.
+        """
         self._on_trigger = on_trigger
         self._active_user_id: Optional[str] = None
         self._timers: Dict[str, threading.Timer] = {}
@@ -29,7 +47,7 @@ class AlarmTool(Tool):
                     },
                     "task": {
                         "type": "string",
-                        "description": "What the user wants to do when the alarm fires.",
+                        "description": "What should be executed when the alarm fires.",
                     },
                 },
                 "required": ["datetime", "task"],
@@ -37,37 +55,76 @@ class AlarmTool(Tool):
         )
 
     def set_context(self, user_id: str, on_trigger: Optional[Callable[[str, str], None]] = None):
+        """Bind the current user and optional callback override.
+        
+        Args:
+            user_id (str): Identifier for the user.
+            on_trigger (Optional[Callable[[str, str], None]]): Input value for on trigger.
+        
+        Returns:
+            None: This method does not return a value.
+        """
         self._active_user_id = user_id
         if on_trigger is not None:
             self._on_trigger = on_trigger
 
     def _execute(self, **kwargs):
+        """Create a timer and return scheduling feedback.
+        
+        Args:
+            **kwargs (Any): Additional keyword arguments for extensibility.
+        
+        Returns:
+            Any: Result produced by this function.
+        
+        Note:
+            This is a private helper used internally by the module/class.
+        """
         dt = _parse_datetime(kwargs.get("datetime"))
         if dt is None:
-            return "闹钟时间格式错误，请使用固定日期时间：YYYY-MM-DD HH:MM 或 YYYY-MM-DD HH:MM:SS。"
+            return (
+                "Invalid datetime format. "
+                "Use absolute datetime: YYYY-MM-DD HH:MM or YYYY-MM-DD HH:MM:SS."
+            )
+
         task = (kwargs.get("task") or "").strip()
         if not task:
-            return "闹钟设置失败：请提供闹钟到点后要执行的任务描述。"
+            return "Alarm setup failed: provide a non-empty task description."
 
         now = datetime_now()
         if dt <= now:
-            return "闹钟时间必须晚于当前时间。"
+            return "Alarm time must be later than the current time."
 
         if not self._active_user_id or not self._on_trigger:
-            return "闹钟设置失败：未绑定触发上下文。"
+            return "Alarm setup failed: callback context is not bound."
 
         key = f"{self._active_user_id}:{dt.isoformat()}:{task}"
         delay = (dt - now).total_seconds()
+
         timer = threading.Timer(delay, self._fire, args=(self._active_user_id, dt, task))
         timer.daemon = True
         self._timers[key] = timer
         timer.start()
-        return f"闹钟已设置：{dt.strftime('%Y-%m-%d %H:%M:%S')}，任务：{task}"
+
+        return f"Alarm set for {dt.strftime('%Y-%m-%d %H:%M:%S')}. Task: {task}"
 
     def _fire(self, user_id: str, dt: datetime, task: str):
+        """Emit a system message when the scheduled alarm time arrives.
+        
+        Args:
+            user_id (str): Identifier for the user.
+            dt (datetime): Input value for dt.
+            task (str): Input value for task.
+        
+        Returns:
+            None: This method does not return a value.
+        
+        Note:
+            This is a private helper used internally by the module/class.
+        """
         content = (
-            f"【system message】闹钟时间到：{dt.strftime('%Y-%m-%d %H:%M:%S')}。"
-            f"你当时的要求是：{task}"
+            f"[system message] Alarm time reached: {dt.strftime('%Y-%m-%d %H:%M:%S')}. "
+            f"Requested task: {task}"
         )
         try:
             if self._on_trigger:
@@ -78,9 +135,21 @@ class AlarmTool(Tool):
 
 
 def _parse_datetime(value: str) -> Optional[datetime]:
+    """Parse supported datetime formats used by the alarm tool.
+    
+    Args:
+        value (str): Input value for value.
+    
+    Returns:
+        Optional[datetime]: Result produced by this function.
+    
+    Note:
+        This is a private helper used internally by the module/class.
+    """
     text = (value or "").strip()
     if not text:
         return None
+
     for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M"):
         try:
             return datetime.strptime(text, fmt)
@@ -90,4 +159,12 @@ def _parse_datetime(value: str) -> Optional[datetime]:
 
 
 def datetime_now() -> datetime:
+    """Return current local datetime (isolated for testability).
+    
+    Args:
+        None.
+    
+    Returns:
+        datetime: Result produced by this function.
+    """
     return datetime.now()

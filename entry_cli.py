@@ -1,5 +1,7 @@
-# -*- coding: utf-8 -*-
-"""CLI entry for LittleAngelBot (debug)."""
+﻿# -*- coding: utf-8 -*-
+"""CLI entry point for LittleAngelBot local debugging."""
+
+from __future__ import annotations
 
 import asyncio
 import os
@@ -15,9 +17,21 @@ HISTORY_DIR = os.path.join(BASE_DIR, "chat_history")
 AGENT_ROOT = os.getenv("LITTLE_ANGEL_AGENT_WORKSPACE", os.path.join(BASE_DIR, "agent_workspace"))
 os.makedirs(AGENT_ROOT, exist_ok=True)
 LOCAL_SECRETS_PATH = os.path.join(BASE_DIR, "local_secrets.yaml")
+STOP_TASK_COMMANDS = {"stop_task", "停止任务"}
 
 
 def _load_local_secrets(path: str) -> dict:
+    """Load optional local secrets from YAML.
+    
+    Args:
+        path (str): Filesystem path used by this operation.
+    
+    Returns:
+        dict: Result produced by this function.
+    
+    Note:
+        This is a private helper used internally by the module/class.
+    """
     if not os.path.isfile(path):
         return {}
     try:
@@ -32,6 +46,18 @@ _LOCAL_SECRETS = _load_local_secrets(LOCAL_SECRETS_PATH)
 
 
 def _get_secret(name: str, fallback: str = "") -> str:
+    """Return secret value from fallback, env, or local YAML.
+    
+    Args:
+        name (str): Input value for name.
+        fallback (str): Input value for fallback.
+    
+    Returns:
+        str: Result produced by this function.
+    
+    Note:
+        This is a private helper used internally by the module/class.
+    """
     if fallback:
         return fallback
     value = os.getenv(name, "")
@@ -41,7 +67,7 @@ def _get_secret(name: str, fallback: str = "") -> str:
     return "" if local is None else str(local)
 
 
-# === Optional local config (set and keep here for convenience) ===
+# Optional local config values for convenience.
 BRAVE_API_KEY = _get_secret("BRAVE_API_KEY", "")
 ZHIPU_API_KEY = _get_secret("ZHIPU_API_KEY", "")
 LLM_API_KEY = _get_secret("LLM_API_KEY", "")
@@ -52,7 +78,7 @@ BOTPY_APPID = _get_secret("BOTPY_APPID", "")
 BOTPY_SECRET = _get_secret("BOTPY_SECRET", "")
 
 
-# Push into env so tools can pick them up.
+# Export local config to environment if missing there.
 for env_name, env_value in [
     ("BRAVE_API_KEY", BRAVE_API_KEY),
     ("ZHIPU_API_KEY", ZHIPU_API_KEY),
@@ -68,20 +94,68 @@ for env_name, env_value in [
 
 
 class _DebugState:
+    """Track in-flight task status for the interactive CLI loop.
+    
+    Attributes:
+        running_task (asyncio.Task | None): Instance field for running task.
+        cancel_requested (bool): Instance field for cancel requested.
+        pending_input (bool): Instance field for pending input.
+        reply_seq (int): Instance field for reply seq.
+    """
+
     def __init__(self):
+        """Initialize task state fields.
+        
+        Args:
+            None.
+        
+        Returns:
+            None: This method does not return a value.
+        """
         self.running_task: asyncio.Task | None = None
         self.cancel_requested = False
         self.pending_input = False
         self.reply_seq = 1
 
     def next_seq(self) -> int:
+        """Return next reply sequence id.
+        
+        Args:
+            None.
+        
+        Returns:
+            int: Result produced by this function.
+        """
         current = self.reply_seq
         self.reply_seq += 1
         return current
 
 
 async def _run_task(bot: LittleAngelBot, user_id: str, content: str, state: _DebugState) -> None:
+    """Execute one bot task and print final output to CLI.
+    
+    Args:
+        bot (LittleAngelBot): Input value for bot.
+        user_id (str): Identifier for the user.
+        content (str): Text content to process.
+        state (_DebugState): Input value for state.
+    
+    Returns:
+        None: This method does not return a value.
+    
+    Note:
+        This is a private helper used internally by the module/class.
+    """
+
     def is_cancelled() -> bool:
+        """Provide cancellation state to agent runtime.
+        
+        Args:
+            None.
+        
+        Returns:
+            bool: True when the condition is satisfied; otherwise False.
+        """
         return state.cancel_requested
 
     try:
@@ -98,12 +172,21 @@ async def _run_task(bot: LittleAngelBot, user_id: str, content: str, state: _Deb
 
 
 async def main_async() -> None:
+    """Run the interactive CLI chat loop.
+    
+    Args:
+        None.
+    
+    Returns:
+        None: This method does not return a value.
+    """
     bot = LittleAngelBot(HISTORY_DIR, max_rounds=20, max_steps=20, agent_root=AGENT_ROOT)
     user_id = "debug_user"
     state = _DebugState()
 
     print("LittleAngelBot CLI (type /quit to exit)")
     print(f"Agent root: {AGENT_ROOT}")
+
     while True:
         try:
             content = (await asyncio.to_thread(input, "You> ")).strip()
@@ -122,25 +205,29 @@ async def main_async() -> None:
             print(f"LLM config is incomplete: {llm_error}")
             print("Please set LLM_API_KEY (required).")
             continue
+
         if not os.getenv("ZHIPU_API_KEY", "").strip():
             print("ZHIPU_API_KEY not set, web search tool may be unavailable.")
 
+        normalized = content.strip().lower()
+
         if state.running_task is not None and not state.running_task.done():
             if bot.has_pending_human(user_id):
-                if content == "停止任务":
+                if normalized in STOP_TASK_COMMANDS:
                     state.cancel_requested = True
                     bot.cancel_pending_human(user_id)
-                    print("Bot> 已停止任务。")
+                    print("Bot> Task stopped.")
                 else:
                     bot.provide_human_input(user_id, content)
                 continue
-            if content == "停止任务":
+
+            if normalized in STOP_TASK_COMMANDS:
                 state.cancel_requested = True
                 bot.cancel_pending_human(user_id)
-                print("Bot> 已停止任务。")
+                print("Bot> Task stopped.")
             else:
                 state.pending_input = True
-                print("Bot> 正在执行当前任务。若要中断，请发送“停止任务”。")
+                print("Bot> A task is running. Send 'stop_task' to interrupt.")
             continue
 
         state.cancel_requested = False
@@ -148,6 +235,15 @@ async def main_async() -> None:
         state.reply_seq = 1
 
         def ask_handler(uid: str, question: str) -> None:
+            """Render ask-human questions in CLI output.
+            
+            Args:
+                uid (str): Input value for uid.
+                question (str): Input value for question.
+            
+            Returns:
+                None: This method does not return a value.
+            """
             print(f"Bot> {question}")
 
         bot.set_ask_handler(user_id, ask_handler)

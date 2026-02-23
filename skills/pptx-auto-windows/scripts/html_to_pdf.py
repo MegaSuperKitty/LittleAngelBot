@@ -9,6 +9,14 @@ import sys
 
 
 def main() -> int:
+    """Main.
+    
+    Args:
+        None.
+    
+    Returns:
+        int: Result produced by this function.
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument("--html", required=True, help="Input HTML file")
     parser.add_argument("--out", required=True, help="Output PDF file")

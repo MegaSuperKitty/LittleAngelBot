@@ -11,6 +11,15 @@ from pypdf import PdfReader, PdfWriter
 
 
 def parse_ranges(ranges: str, max_pages: int) -> Iterable[int]:
+    """Parse ranges.
+    
+    Args:
+        ranges (str): Input value for ranges.
+        max_pages (int): Maximum value for pages.
+    
+    Returns:
+        Iterable[int]: Result produced by this function.
+    """
     pages = set()
     for part in ranges.split(","):
         part = part.strip()
@@ -31,6 +40,14 @@ def parse_ranges(ranges: str, max_pages: int) -> Iterable[int]:
 
 
 def main() -> int:
+    """Main.
+    
+    Args:
+        None.
+    
+    Returns:
+        int: Result produced by this function.
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument("--in", dest="inp", required=True, help="Input PDF")
     parser.add_argument("--out", required=True, help="Output PDF")

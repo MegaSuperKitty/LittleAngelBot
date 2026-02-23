@@ -13,7 +13,20 @@ from .path_utils import normalize_root, resolve_relative_path, require_existing_
 
 
 class SkillExecutorTool(Tool):
+    """Represent the SkillExecutorTool component.
+    
+    Attributes:
+        _skills_root (Any): Instance field for skills root.
+    """
     def __init__(self, skills_root: str):
+        """Initialize skill executor tool state and dependencies.
+        
+        Args:
+            skills_root (str): Input value for skills root.
+        
+        Returns:
+            None: This method does not return a value.
+        """
         self._skills_root = normalize_root(skills_root)
         super().__init__(
             name="skill_exec",
@@ -36,6 +49,17 @@ class SkillExecutorTool(Tool):
         )
 
     def _execute(self, **kwargs):
+        """Internal helper to execute.
+        
+        Args:
+            **kwargs (Any): Additional keyword arguments for extensibility.
+        
+        Returns:
+            Any: Result produced by this function.
+        
+        Note:
+            This is a private helper used internally by the module/class.
+        """
         skill = (kwargs.get("skill") or "").strip()
         command = kwargs.get("command") or ""
         workdir = kwargs.get("workdir")
@@ -72,6 +96,18 @@ class SkillExecutorTool(Tool):
         return output
 
     def _resolve_workdir(self, skill_dir: str, workdir: Optional[str]) -> str:
+        """Internal helper to resolve workdir.
+        
+        Args:
+            skill_dir (str): Input value for skill dir.
+            workdir (Optional[str]): Input value for workdir.
+        
+        Returns:
+            str: Result produced by this function.
+        
+        Note:
+            This is a private helper used internally by the module/class.
+        """
         try:
             return resolve_relative_path(skill_dir, workdir)
         except ValueError:

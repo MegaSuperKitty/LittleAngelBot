@@ -4,13 +4,19 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import inspect
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 import json
 import os
+import threading
+import time
 import urllib.error
 import urllib.request
 
 from openai import OpenAI
+
+from model_metering_core import get_default_engine
+from model_metering_core.token_estimator import estimate_usage
 
 
 @dataclass(frozen=True)
@@ -52,9 +58,32 @@ class LLMToolCall:
 class LLMMessage:
     content: str
     tool_calls: Optional[List[LLMToolCall]] = None
+    usage_prompt_tokens: Optional[int] = None
+    usage_completion_tokens: Optional[int] = None
+    usage_total_tokens: Optional[int] = None
+    usage_source: str = ""
+    response_id: str = ""
+    finish_reason: str = ""
+    latency_ms: Optional[int] = None
 
 
 _PROVIDER_CACHE: Dict[Tuple[str, str, str, str, str, Optional[int], float], "_BaseProvider"] = {}
+
+_PROVIDER_API_KEY_ENV: Dict[str, str] = {
+    "openai": "OPENAI_API_KEY",
+    "anthropic": "ANTHROPIC_API_KEY",
+    "dashscope": "DASHSCOPE_API_KEY",
+    "openai_custom": "LLM_API_KEY",
+    "anthropic_custom": "LLM_API_KEY",
+}
+
+_PROVIDER_DISPLAY_NAME: Dict[str, str] = {
+    "openai": "OpenAI",
+    "anthropic": "Anthropic",
+    "dashscope": "DashScope",
+    "openai_custom": "OpenAI Compatible Endpoint",
+    "anthropic_custom": "Anthropic Compatible Endpoint",
+}
 
 
 def _strip(value: Optional[str]) -> str:
@@ -89,14 +118,25 @@ def _parse_float(value: Optional[str], default: float) -> float:
         return default
 
 
+def _parse_int_like(value: Any, default: int = 0) -> int:
+    try:
+        if value is None:
+            return default
+        return int(value)
+    except Exception:
+        return default
+
+
 def _normalize_provider_name(value: str) -> str:
     text = _strip(value).lower()
+    if text in {"anthropic_custom", "anthropic-compatible", "anthropic_compatible"}:
+        return "anthropic_custom"
     if text in {"anthropic", "claude"}:
         return "anthropic"
+    if text in {"openai_custom", "openai-compatible", "openai_compatible"}:
+        return "openai_custom"
     if text in {"dashscope", "qwen"}:
         return "dashscope"
-    if text in {"siliconflow", "silicon"}:
-        return "siliconflow"
     if text in {"openai", "openai_compatible"}:
         return "openai"
     return ""
@@ -112,8 +152,6 @@ def _infer_provider_name(provider_hint: str, base_url: str, api_key: str, model:
         return "anthropic"
     if "dashscope" in clue:
         return "dashscope"
-    if "siliconflow" in clue:
-        return "siliconflow"
     if "openai" in clue:
         return "openai"
 
@@ -121,29 +159,49 @@ def _infer_provider_name(provider_hint: str, base_url: str, api_key: str, model:
 
 
 def _provider_kind(provider_name: str) -> str:
-    if provider_name == "anthropic":
+    if provider_name in {"anthropic", "anthropic_custom"}:
         return "anthropic"
     return "openai_compatible"
 
 
+def provider_api_key_env(provider_name: str) -> str:
+    return _PROVIDER_API_KEY_ENV.get(_normalize_provider_name(provider_name), "LLM_API_KEY")
+
+
+def list_provider_catalog() -> List[Dict[str, Any]]:
+    rows: List[Dict[str, Any]] = []
+    for provider_name in ["openai", "anthropic", "dashscope", "openai_custom", "anthropic_custom"]:
+        rows.append(
+            {
+                "provider": provider_name,
+                "display_name": _PROVIDER_DISPLAY_NAME.get(provider_name, provider_name),
+                "api_key_env": provider_api_key_env(provider_name),
+                "default_base_url": _default_base_url(provider_name),
+                "default_model": _default_model(provider_name, _default_base_url(provider_name)),
+                "is_custom": provider_name in {"openai_custom", "anthropic_custom"},
+            }
+        )
+    return rows
+
+
 def _default_base_url(provider_name: str) -> str:
-    if provider_name == "dashscope":
-        return "https://dashscope.aliyuncs.com/compatible-mode/v1"
-    if provider_name == "siliconflow":
-        return "https://api.siliconflow.cn/v1"
+    if provider_name == "openai":
+        return "https://api.openai.com/v1"
     if provider_name == "anthropic":
         return "https://api.anthropic.com"
+    if provider_name == "dashscope":
+        return "https://dashscope.aliyuncs.com/compatible-mode/v1"
+    if provider_name in {"openai_custom", "anthropic_custom"}:
+        return ""
     return "https://api.openai.com/v1"
 
 
 def _default_model(provider_name: str, base_url: str) -> str:
     lower_url = _strip(base_url).lower()
+    if provider_name in {"anthropic", "anthropic_custom"} or "anthropic" in lower_url:
+        return "claude-3-5-sonnet-latest"
     if provider_name == "dashscope" or "dashscope" in lower_url:
         return "qwen3-max"
-    if provider_name == "siliconflow" or "siliconflow" in lower_url:
-        return "Qwen/Qwen2.5-7B-Instruct"
-    if provider_name == "anthropic" or "anthropic" in lower_url:
-        return "claude-3-5-sonnet-latest"
     return "gpt-4o-mini"
 
 
@@ -160,10 +218,18 @@ def resolve_llm_config(
     model_hint = _first_non_empty(model, os.getenv("LLM_MODEL", ""))
 
     provider_name = _infer_provider_name(provider_hint, base_url_hint, api_key_hint, model_hint)
+    # If no explicit hints are given, try provider-specific keys before defaulting.
+    if not _strip(provider_hint) and not _strip(base_url_hint) and not _strip(model_hint) and not _strip(api_key_hint):
+        for candidate in ["openai", "anthropic", "dashscope"]:
+            env_name = provider_api_key_env(candidate)
+            if _strip(os.getenv(env_name, "")):
+                provider_name = candidate
+                break
     provider_kind = _provider_kind(provider_name)
 
     resolved_base_url = _first_non_empty(base_url, os.getenv("LLM_BASE_URL", ""), _default_base_url(provider_name))
-    resolved_api_key = _first_non_empty(api_key, os.getenv("LLM_API_KEY", ""))
+    provider_env_name = provider_api_key_env(provider_name)
+    resolved_api_key = _first_non_empty(api_key, os.getenv("LLM_API_KEY", ""), os.getenv(provider_env_name, ""))
 
     resolved_model = _first_non_empty(model, os.getenv("LLM_MODEL", ""))
     if not resolved_model:
@@ -206,20 +272,89 @@ def is_llm_configured(
     return validate_llm_config(provider=provider, base_url=base_url, api_key=api_key, model=model) is None
 
 
+def _jsonable(value: Any) -> Any:
+    try:
+        return json.loads(json.dumps(value, ensure_ascii=False, default=str))
+    except Exception:
+        return str(value)
+
+
+def _clip_text(value: Any, limit: int = 600) -> str:
+    text = str(value or "").strip()
+    if len(text) <= limit:
+        return text
+    return text[: max(0, limit - 3)] + "..."
+
+
+def _tool_calls_to_dict(tool_calls: Optional[List[LLMToolCall]]) -> List[Dict[str, Any]]:
+    rows: List[Dict[str, Any]] = []
+    for call in tool_calls or []:
+        if isinstance(call, dict):
+            rows.append(_jsonable(call))
+            continue
+        fn = getattr(call, "function", None)
+        rows.append(
+            {
+                "id": str(getattr(call, "id", "") or ""),
+                "type": str(getattr(call, "type", "function") or "function"),
+                "function": {
+                    "name": str(getattr(fn, "name", "") or ""),
+                    "arguments": str(getattr(fn, "arguments", "") or ""),
+                },
+            }
+        )
+    return rows
+
+
+def _resolve_caller() -> Dict[str, Any]:
+    try:
+        for frame in inspect.stack()[1:]:
+            path = os.path.abspath(frame.filename)
+            if os.path.abspath(__file__) == path:
+                continue
+            return {
+                "file": path,
+                "func": frame.function,
+                "line": int(frame.lineno),
+            }
+    except Exception:
+        pass
+    return {"file": "", "func": "", "line": 0}
+
+
+def _resolve_profile_id() -> str:
+    return _strip(os.getenv("LLM_PROFILE_ID", ""))
+
+
+def _metering_enabled() -> bool:
+    flag = _strip(os.getenv("MODEL_METERING_ENABLED", "1")).lower()
+    return flag not in {"0", "false", "off", "no"}
+
+
+def _metering_engine():
+    if not _metering_enabled():
+        return None
+    try:
+        return get_default_engine()
+    except Exception:
+        return None
+
+
 def get_response(
     prompts: Sequence[Dict[str, Any]],
     tools: Optional[Sequence[Dict[str, Any]]] = None,
     key_word: str = "",
     stream: bool = False,
     on_token=None,
-    temperature: float = 0.0,
-    top_p: float = 0.1,
+    temperature: Optional[float] = None,
+    top_p: Optional[float] = None,
     provider: Optional[str] = None,
     base_url: Optional[str] = None,
     api_key: Optional[str] = None,
     model: Optional[str] = None,
     max_tokens: Optional[int] = None,
 ) -> LLMMessage:
+    started_at = time.time()
     config = resolve_llm_config(
         provider=provider,
         base_url=base_url,
@@ -234,20 +369,238 @@ def get_response(
         model=config.model,
     )
     if error:
-        raise RuntimeError(f"Invalid LLM config: {error}")
+        exc = RuntimeError(f"Invalid LLM config: {error}")
+        engine = _metering_engine()
+        if engine is not None:
+            finished_at = time.time()
+            caller = _resolve_caller()
+            engine.record_call(
+                {
+                    "call_id": engine.build_call_id(started_at),
+                    "started_at": started_at,
+                    "finished_at": finished_at,
+                    "day": time.strftime("%Y-%m-%d", time.localtime(started_at)),
+                    "success": False,
+                    "latency_ms": int(max(0.0, (finished_at - started_at) * 1000)),
+                    "provider": config.provider_name,
+                    "provider_kind": config.provider_kind,
+                    "model": config.model,
+                    "base_url": config.base_url,
+                    "profile_id": _resolve_profile_id(),
+                    "stream": bool(stream),
+                    "key_word": key_word,
+                    "message_count": len(list(prompts or [])),
+                    "tool_count": len(list(tools or [])),
+                    "temperature": temperature,
+                    "top_p": top_p,
+                    "max_tokens": max_tokens,
+                    "usage": {
+                        "prompt_tokens": 0,
+                        "completion_tokens": 0,
+                        "total_tokens": 0,
+                        "source": "estimated",
+                    },
+                    "request_payload": {
+                        "messages": _jsonable(list(prompts or [])),
+                        "tools": _jsonable(list(tools or [])),
+                        "model_params": _jsonable(
+                            {
+                                "temperature": temperature,
+                                "top_p": top_p,
+                                "max_tokens": max_tokens,
+                                "stream": bool(stream),
+                                "key_word": key_word,
+                            }
+                        ),
+                    },
+                    "response_payload": {
+                        "content": "",
+                        "tool_calls": [],
+                        "finish_reason": "",
+                        "response_id": "",
+                    },
+                    "input_preview": _clip_text(
+                        " ".join(str((m or {}).get("content", "")) for m in list(prompts or []) if isinstance(m, dict))
+                    ),
+                    "output_preview": "",
+                    "error_type": type(exc).__name__,
+                    "error_message": str(exc),
+                    "caller_file": caller["file"],
+                    "caller_func": caller["func"],
+                    "caller_line": caller["line"],
+                    "process_id": os.getpid(),
+                    "thread_id": threading.get_ident(),
+                }
+            )
+        raise exc
+
+    resolved_temperature = float(temperature) if temperature is not None else _parse_float(os.getenv("LLM_TEMPERATURE", ""), 0.0)
+    resolved_top_p = float(top_p) if top_p is not None else _parse_float(os.getenv("LLM_TOP_P", ""), 0.1)
+    resolved_model = model or config.model
+    resolved_max_tokens = max_tokens if max_tokens is not None else config.max_tokens
+    prompts_list = list(prompts or [])
+    tools_list = list(tools or [])
+    caller = _resolve_caller()
+    profile_id = _resolve_profile_id()
+    engine = _metering_engine()
+    call_id = ""
+    if engine is not None:
+        try:
+            call_id = engine.build_call_id(started_at)
+        except Exception:
+            call_id = ""
+
+    model_params = {
+        "temperature": resolved_temperature,
+        "top_p": resolved_top_p,
+        "max_tokens": resolved_max_tokens,
+        "stream": bool(stream),
+        "key_word": key_word,
+    }
 
     backend = _get_provider(config)
-    return backend.chat(
-        prompts=list(prompts or []),
-        tools=list(tools or []),
-        key_word=key_word,
-        stream=stream,
-        on_token=on_token,
-        temperature=temperature,
-        top_p=top_p,
-        model=model or config.model,
-        max_tokens=max_tokens if max_tokens is not None else config.max_tokens,
+    try:
+        message = backend.chat(
+            prompts=prompts_list,
+            tools=tools_list,
+            key_word=key_word,
+            stream=stream,
+            on_token=on_token,
+            temperature=resolved_temperature,
+            top_p=resolved_top_p,
+            model=resolved_model,
+            max_tokens=resolved_max_tokens,
+        )
+    except Exception as exc:
+        finished_at = time.time()
+        if engine is not None:
+            engine.record_call(
+                {
+                    "call_id": call_id or engine.build_call_id(started_at),
+                    "started_at": started_at,
+                    "finished_at": finished_at,
+                    "day": time.strftime("%Y-%m-%d", time.localtime(started_at)),
+                    "success": False,
+                    "latency_ms": int(max(0.0, (finished_at - started_at) * 1000)),
+                    "provider": config.provider_name,
+                    "provider_kind": config.provider_kind,
+                    "model": resolved_model,
+                    "base_url": config.base_url,
+                    "profile_id": profile_id,
+                    "stream": bool(stream),
+                    "key_word": key_word,
+                    "message_count": len(prompts_list),
+                    "tool_count": len(tools_list),
+                    "temperature": resolved_temperature,
+                    "top_p": resolved_top_p,
+                    "max_tokens": resolved_max_tokens,
+                    "usage": {
+                        "prompt_tokens": 0,
+                        "completion_tokens": 0,
+                        "total_tokens": 0,
+                        "source": "estimated",
+                    },
+                    "request_payload": {
+                        "messages": _jsonable(prompts_list),
+                        "tools": _jsonable(tools_list),
+                        "model_params": _jsonable(model_params),
+                    },
+                    "response_payload": {
+                        "content": "",
+                        "tool_calls": [],
+                        "finish_reason": "",
+                        "response_id": "",
+                    },
+                    "input_preview": _clip_text(" ".join(str((m or {}).get("content", "")) for m in prompts_list if isinstance(m, dict))),
+                    "output_preview": "",
+                    "error_type": type(exc).__name__,
+                    "error_message": str(exc),
+                    "caller_file": caller["file"],
+                    "caller_func": caller["func"],
+                    "caller_line": caller["line"],
+                    "process_id": os.getpid(),
+                    "thread_id": threading.get_ident(),
+                }
+            )
+        raise
+
+    finished_at = time.time()
+    message.latency_ms = int(max(0.0, (finished_at - started_at) * 1000))
+
+    usage_missing = (
+        message.usage_prompt_tokens is None
+        or message.usage_completion_tokens is None
+        or message.usage_total_tokens is None
     )
+    if usage_missing:
+        estimated = estimate_usage(
+            prompts=prompts_list,
+            tools=tools_list,
+            model_params=model_params,
+            response_content=message.content,
+            response_tool_calls=_tool_calls_to_dict(message.tool_calls),
+        )
+        message.usage_prompt_tokens = estimated.prompt_tokens
+        message.usage_completion_tokens = estimated.completion_tokens
+        message.usage_total_tokens = estimated.total_tokens
+        message.usage_source = "estimated"
+    else:
+        if not message.usage_source:
+            message.usage_source = "provider"
+        if message.usage_total_tokens is None:
+            message.usage_total_tokens = int(message.usage_prompt_tokens or 0) + int(message.usage_completion_tokens or 0)
+
+    if engine is not None:
+        engine.record_call(
+            {
+                "call_id": call_id or engine.build_call_id(started_at),
+                "started_at": started_at,
+                "finished_at": finished_at,
+                "day": time.strftime("%Y-%m-%d", time.localtime(started_at)),
+                "success": True,
+                "latency_ms": int(message.latency_ms or 0),
+                "provider": config.provider_name,
+                "provider_kind": config.provider_kind,
+                "model": resolved_model,
+                "base_url": config.base_url,
+                "profile_id": profile_id,
+                "stream": bool(stream),
+                "key_word": key_word,
+                "message_count": len(prompts_list),
+                "tool_count": len(tools_list),
+                "temperature": resolved_temperature,
+                "top_p": resolved_top_p,
+                "max_tokens": resolved_max_tokens,
+                "usage": {
+                    "prompt_tokens": int(message.usage_prompt_tokens or 0),
+                    "completion_tokens": int(message.usage_completion_tokens or 0),
+                    "total_tokens": int(message.usage_total_tokens or 0),
+                    "source": message.usage_source or "estimated",
+                },
+                "request_payload": {
+                    "messages": _jsonable(prompts_list),
+                    "tools": _jsonable(tools_list),
+                    "model_params": _jsonable(model_params),
+                },
+                "response_payload": {
+                    "content": message.content or "",
+                    "tool_calls": _tool_calls_to_dict(message.tool_calls),
+                    "finish_reason": message.finish_reason or "",
+                    "response_id": message.response_id or "",
+                },
+                "input_preview": _clip_text(" ".join(str((m or {}).get("content", "")) for m in prompts_list if isinstance(m, dict))),
+                "output_preview": _clip_text(message.content or ""),
+                "error_type": "",
+                "error_message": "",
+                "caller_file": caller["file"],
+                "caller_func": caller["func"],
+                "caller_line": caller["line"],
+                "process_id": os.getpid(),
+                "thread_id": threading.get_ident(),
+            }
+        )
+
+    return message
 
 
 def _get_provider(config: LLMConfig) -> "_BaseProvider":
@@ -320,7 +673,16 @@ class _OpenAICompatibleProvider(_BaseProvider):
 
         response = self.client.chat.completions.create(**payload)
         message = response.choices[0].message
-        return _normalize_openai_message(message)
+        normalized = _normalize_openai_message(message)
+        normalized.response_id = _normalize_content_text(getattr(response, "id", ""))
+        normalized.finish_reason = _normalize_content_text(getattr(response.choices[0], "finish_reason", ""))
+        usage = getattr(response, "usage", None)
+        if usage is not None:
+            normalized.usage_prompt_tokens = _parse_int_like(getattr(usage, "prompt_tokens", 0))
+            normalized.usage_completion_tokens = _parse_int_like(getattr(usage, "completion_tokens", 0))
+            normalized.usage_total_tokens = _parse_int_like(getattr(usage, "total_tokens", 0))
+            normalized.usage_source = "provider"
+        return normalized
 
 
 class _AnthropicProvider(_BaseProvider):
@@ -382,7 +744,19 @@ class _AnthropicProvider(_BaseProvider):
             raise RuntimeError(f"Anthropic request failed: {exc}") from exc
 
         data = json.loads(raw)
-        return _normalize_anthropic_message(data)
+        normalized = _normalize_anthropic_message(data)
+        normalized.response_id = _normalize_content_text(data.get("id", ""))
+        normalized.finish_reason = _normalize_content_text(data.get("stop_reason", ""))
+        usage = data.get("usage", {})
+        if isinstance(usage, dict):
+            prompt_tokens = _parse_int_like(usage.get("input_tokens", usage.get("prompt_tokens", 0)))
+            completion_tokens = _parse_int_like(usage.get("output_tokens", usage.get("completion_tokens", 0)))
+            total_tokens = _parse_int_like(usage.get("total_tokens", prompt_tokens + completion_tokens))
+            normalized.usage_prompt_tokens = prompt_tokens
+            normalized.usage_completion_tokens = completion_tokens
+            normalized.usage_total_tokens = total_tokens
+            normalized.usage_source = "provider"
+        return normalized
 
 
 def _normalize_openai_message(message: Any) -> LLMMessage:

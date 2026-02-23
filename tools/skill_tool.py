@@ -8,7 +8,22 @@ from skill_registry import SkillRegistry
 
 
 class SkillTool(Tool):
+    """Provide skill tool capabilities.
+    
+    Attributes:
+        registry (SkillRegistry): Instance field for registry.
+        allowed_skills (Any): Instance field for allowed skills.
+    """
     def __init__(self, registry: SkillRegistry, allowed_skills: Optional[List[str]] = None):
+        """Initialize skill tool state and dependencies.
+        
+        Args:
+            registry (SkillRegistry): Input value for registry.
+            allowed_skills (Optional[List[str]]): Input value for allowed skills.
+        
+        Returns:
+            None: This method does not return a value.
+        """
         self.registry = registry
         self.allowed_skills = _normalize_allowlist(allowed_skills)
         description = _build_description(registry, self.allowed_skills)
@@ -25,6 +40,17 @@ class SkillTool(Tool):
         super().__init__(name="skill", description=description, parameters=parameters)
 
     def _execute(self, **kwargs):
+        """Internal helper to execute.
+        
+        Args:
+            **kwargs (Any): Additional keyword arguments for extensibility.
+        
+        Returns:
+            Any: Result produced by this function.
+        
+        Note:
+            This is a private helper used internally by the module/class.
+        """
         name = (kwargs.get("name") or "").strip()
         if not name:
             return "Skill error: name is required."
@@ -37,6 +63,18 @@ class SkillTool(Tool):
 
 
 def _build_description(registry: SkillRegistry, allowlist: Optional[List[str]]) -> str:
+    """Internal helper to build description.
+    
+    Args:
+        registry (SkillRegistry): Input value for registry.
+        allowlist (Optional[List[str]]): Input value for allowlist.
+    
+    Returns:
+        str: Result produced by this function.
+    
+    Note:
+        This is a private helper used internally by the module/class.
+    """
     skills = registry.list_skills()
     if allowlist is not None:
         allowed = set(allowlist)
@@ -59,6 +97,17 @@ def _build_description(registry: SkillRegistry, allowlist: Optional[List[str]]) 
 
 
 def _normalize_allowlist(allowed: Optional[List[str]]) -> Optional[List[str]]:
+    """Internal helper to normalize allowlist.
+    
+    Args:
+        allowed (Optional[List[str]]): Input value for allowed.
+    
+    Returns:
+        Optional[List[str]]: Result produced by this function.
+    
+    Note:
+        This is a private helper used internally by the module/class.
+    """
     if allowed is None:
         return None
     if isinstance(allowed, list):

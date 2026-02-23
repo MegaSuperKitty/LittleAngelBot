@@ -7,7 +7,20 @@ from tool import Tool
 
 
 class ReportTemplateTool(Tool):
+    """Represent the ReportTemplateTool component.
+    
+    Note:
+        This class currently exposes no documented instance attributes.
+    """
     def __init__(self):
+        """Initialize report template tool state and dependencies.
+        
+        Args:
+            None.
+        
+        Returns:
+            None: This method does not return a value.
+        """
         super().__init__(
             name="report_template",
             description="Generate a structured report template with citation placeholders.",
@@ -22,6 +35,17 @@ class ReportTemplateTool(Tool):
         )
 
     def _execute(self, **kwargs):
+        """Internal helper to execute.
+        
+        Args:
+            **kwargs (Any): Additional keyword arguments for extensibility.
+        
+        Returns:
+            Any: Result produced by this function.
+        
+        Note:
+            This is a private helper used internally by the module/class.
+        """
         topic = (kwargs.get("topic") or "").strip()
         requirements = (kwargs.get("requirements") or "").strip()
         if not topic:

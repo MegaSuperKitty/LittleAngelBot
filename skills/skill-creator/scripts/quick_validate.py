@@ -10,7 +10,14 @@ import yaml
 from pathlib import Path
 
 def validate_skill(skill_path):
-    """Basic validation of a skill"""
+    """Basic validation of a skill.
+    
+    Args:
+        skill_path (Any): Filesystem path for skill path.
+    
+    Returns:
+        Any: Result produced by this function.
+    """
     skill_path = Path(skill_path)
 
     # Check SKILL.md exists
