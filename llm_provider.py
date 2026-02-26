@@ -58,6 +58,7 @@ class LLMToolCall:
 class LLMMessage:
     content: str
     tool_calls: Optional[List[LLMToolCall]] = None
+    reasoning_content: str = ""
     usage_prompt_tokens: Optional[int] = None
     usage_completion_tokens: Optional[int] = None
     usage_total_tokens: Optional[int] = None
@@ -658,8 +659,8 @@ class _OpenAICompatibleProvider(_BaseProvider):
         payload: Dict[str, Any] = {
             "model": model,
             "messages": prompts,
-            # Keep the current runtime deterministic; tool loops in this repo are non-streaming.
-            "stream": False,
+            # Always receive model output via stream and aggregate chunks.
+            "stream": True,
             "temperature": temperature,
             "top_p": top_p,
         }
@@ -672,17 +673,10 @@ class _OpenAICompatibleProvider(_BaseProvider):
             payload["max_tokens"] = max_tokens
 
         response = self.client.chat.completions.create(**payload)
-        message = response.choices[0].message
-        normalized = _normalize_openai_message(message)
-        normalized.response_id = _normalize_content_text(getattr(response, "id", ""))
-        normalized.finish_reason = _normalize_content_text(getattr(response.choices[0], "finish_reason", ""))
-        usage = getattr(response, "usage", None)
-        if usage is not None:
-            normalized.usage_prompt_tokens = _parse_int_like(getattr(usage, "prompt_tokens", 0))
-            normalized.usage_completion_tokens = _parse_int_like(getattr(usage, "completion_tokens", 0))
-            normalized.usage_total_tokens = _parse_int_like(getattr(usage, "total_tokens", 0))
-            normalized.usage_source = "provider"
-        return normalized
+        return _collect_openai_stream_response(
+            response,
+            on_token=on_token if stream else None,
+        )
 
 
 class _AnthropicProvider(_BaseProvider):
@@ -702,9 +696,6 @@ class _AnthropicProvider(_BaseProvider):
         model: str,
         max_tokens: Optional[int],
     ) -> LLMMessage:
-        if stream:
-            raise RuntimeError("Anthropic streaming is not implemented in this project.")
-
         system_text, converted_messages = _to_anthropic_messages(prompts)
         payload: Dict[str, Any] = {
             "model": model,
@@ -712,6 +703,8 @@ class _AnthropicProvider(_BaseProvider):
             "max_tokens": max_tokens or self.config.max_tokens or 2048,
             "temperature": temperature,
             "top_p": top_p,
+            # Always receive model output via stream and aggregate chunks.
+            "stream": True,
         }
         if system_text:
             payload["system"] = system_text
@@ -729,6 +722,7 @@ class _AnthropicProvider(_BaseProvider):
             data=body,
             headers={
                 "content-type": "application/json",
+                "accept": "text/event-stream",
                 "x-api-key": self.config.api_key,
                 "anthropic-version": "2023-06-01",
             },
@@ -736,31 +730,380 @@ class _AnthropicProvider(_BaseProvider):
         )
         try:
             with urllib.request.urlopen(request, timeout=self.config.request_timeout) as response:
-                raw = response.read().decode("utf-8")
+                return _collect_anthropic_stream_response(
+                    response,
+                    on_token=on_token if stream else None,
+                )
         except urllib.error.HTTPError as exc:
             detail = exc.read().decode("utf-8", errors="ignore")
             raise RuntimeError(f"Anthropic request failed ({exc.code}): {detail}") from exc
         except Exception as exc:
             raise RuntimeError(f"Anthropic request failed: {exc}") from exc
 
-        data = json.loads(raw)
-        normalized = _normalize_anthropic_message(data)
-        normalized.response_id = _normalize_content_text(data.get("id", ""))
-        normalized.finish_reason = _normalize_content_text(data.get("stop_reason", ""))
-        usage = data.get("usage", {})
-        if isinstance(usage, dict):
-            prompt_tokens = _parse_int_like(usage.get("input_tokens", usage.get("prompt_tokens", 0)))
-            completion_tokens = _parse_int_like(usage.get("output_tokens", usage.get("completion_tokens", 0)))
-            total_tokens = _parse_int_like(usage.get("total_tokens", prompt_tokens + completion_tokens))
-            normalized.usage_prompt_tokens = prompt_tokens
-            normalized.usage_completion_tokens = completion_tokens
-            normalized.usage_total_tokens = total_tokens
-            normalized.usage_source = "provider"
-        return normalized
+ 
+def _collect_openai_stream_response(response: Any, on_token=None) -> LLMMessage:
+    content_parts: List[str] = []
+    reasoning_text = ""
+    tool_calls_by_index: Dict[int, Dict[str, str]] = {}
+
+    response_id = ""
+    finish_reason = ""
+    usage_prompt_tokens: Optional[int] = None
+    usage_completion_tokens: Optional[int] = None
+    usage_total_tokens: Optional[int] = None
+
+    for chunk in response:
+        if not response_id:
+            response_id = _normalize_content_text(getattr(chunk, "id", ""))
+
+        usage = getattr(chunk, "usage", None)
+        if usage is not None:
+            usage_prompt_tokens = _parse_int_like(getattr(usage, "prompt_tokens", usage_prompt_tokens or 0))
+            usage_completion_tokens = _parse_int_like(getattr(usage, "completion_tokens", usage_completion_tokens or 0))
+            usage_total_tokens = _parse_int_like(getattr(usage, "total_tokens", usage_total_tokens or 0))
+
+        choices = getattr(chunk, "choices", None) or []
+        if not choices:
+            continue
+        choice = choices[0]
+        if getattr(choice, "finish_reason", None):
+            finish_reason = _normalize_content_text(getattr(choice, "finish_reason", ""))
+
+        delta = getattr(choice, "delta", None)
+        if delta is None:
+            continue
+
+        raw_content = getattr(delta, "content", None)
+        text_delta = _normalize_text_content(raw_content)
+        if text_delta:
+            content_parts.append(text_delta)
+            _safe_on_token(on_token, text_delta)
+
+        reasoning_delta = _normalize_reasoning_text(
+            getattr(delta, "reasoning_content", "")
+            or getattr(delta, "reasoning", "")
+            or getattr(delta, "thinking", "")
+        )
+        if not reasoning_delta:
+            reasoning_delta = _normalize_reasoning_from_content_blocks(raw_content)
+        if reasoning_delta:
+            reasoning_text = _merge_reasoning_fragment(reasoning_text, reasoning_delta)
+
+        delta_tool_calls = getattr(delta, "tool_calls", None) or []
+        for idx, call in enumerate(delta_tool_calls):
+            call_index = _parse_int_like(getattr(call, "index", idx), idx)
+            slot = tool_calls_by_index.setdefault(
+                call_index,
+                {
+                    "id": "",
+                    "type": "function",
+                    "name": "",
+                    "arguments": "",
+                },
+            )
+            slot["id"] = _merge_stream_fragment(slot["id"], _normalize_content_text(getattr(call, "id", "")))
+            slot["type"] = _merge_stream_fragment(
+                slot["type"],
+                _normalize_content_text(getattr(call, "type", "function")) or "function",
+            )
+            function = getattr(call, "function", None)
+            if function is not None:
+                slot["name"] = _merge_stream_fragment(
+                    slot["name"],
+                    _normalize_content_text(getattr(function, "name", "")),
+                )
+                slot["arguments"] = _merge_stream_fragment(
+                    slot["arguments"],
+                    _normalize_content_text(getattr(function, "arguments", "")),
+                )
+
+    calls: List[LLMToolCall] = []
+    for idx in sorted(tool_calls_by_index.keys()):
+        item = tool_calls_by_index[idx]
+        call_id = _normalize_content_text(item.get("id", "")) or f"call_{idx + 1}"
+        call_type = _normalize_content_text(item.get("type", "function")) or "function"
+        call_name = _normalize_content_text(item.get("name", ""))
+        call_arguments = item.get("arguments", "").strip() or "{}"
+        calls.append(
+            LLMToolCall(
+                id=call_id,
+                type=call_type,
+                function=LLMFunctionCall(name=call_name, arguments=call_arguments),
+            )
+        )
+
+    normalized = LLMMessage(
+        content="".join(content_parts),
+        tool_calls=calls or None,
+        reasoning_content=reasoning_text.strip(),
+    )
+    normalized.response_id = response_id
+    normalized.finish_reason = finish_reason
+    if usage_prompt_tokens is not None or usage_completion_tokens is not None or usage_total_tokens is not None:
+        p = int(usage_prompt_tokens or 0)
+        c = int(usage_completion_tokens or 0)
+        t = int(usage_total_tokens or (p + c))
+        normalized.usage_prompt_tokens = p
+        normalized.usage_completion_tokens = c
+        normalized.usage_total_tokens = t
+        normalized.usage_source = "provider"
+    return normalized
+
+
+def _collect_anthropic_stream_response(response: Any, on_token=None) -> LLMMessage:
+    response_id = ""
+    finish_reason = ""
+    text_parts: List[str] = []
+    reasoning_text = ""
+
+    prompt_tokens: Optional[int] = None
+    completion_tokens: Optional[int] = None
+    total_tokens: Optional[int] = None
+
+    tool_calls_by_index: Dict[int, Dict[str, str]] = {}
+
+    for event_name, data in _iter_sse_json_events(response):
+        if not isinstance(data, dict):
+            continue
+
+        event_type = event_name
+        if event_type == "message":
+            event_type = _normalize_content_text(data.get("type", "")) or event_type
+
+        if event_type == "error":
+            detail = data.get("error", data)
+            if isinstance(detail, dict):
+                msg = _normalize_content_text(detail.get("message", "")) or json.dumps(detail, ensure_ascii=False)
+            else:
+                msg = _normalize_content_text(detail)
+            raise RuntimeError(f"Anthropic stream error: {msg}")
+
+        if event_type == "message_start":
+            message = data.get("message") or {}
+            if isinstance(message, dict):
+                response_id = _normalize_content_text(message.get("id", "")) or response_id
+                usage = message.get("usage") or {}
+                if isinstance(usage, dict):
+                    prompt_tokens = _parse_int_like(
+                        usage.get("input_tokens", usage.get("prompt_tokens", prompt_tokens or 0))
+                    )
+                    output_guess = usage.get("output_tokens", usage.get("completion_tokens", completion_tokens))
+                    if output_guess is not None:
+                        completion_tokens = _parse_int_like(output_guess, completion_tokens or 0)
+                    total_guess = usage.get("total_tokens")
+                    if total_guess is not None:
+                        total_tokens = _parse_int_like(total_guess, total_tokens or 0)
+            continue
+
+        if event_type == "content_block_start":
+            block_index = _parse_int_like(data.get("index"), 0)
+            block = data.get("content_block") or {}
+            if not isinstance(block, dict):
+                block = {}
+            block_type = _normalize_content_text(block.get("type", "")).lower()
+            if block_type == "text":
+                text = _normalize_content_text(block.get("text", ""))
+                if text:
+                    text_parts.append(text)
+                    _safe_on_token(on_token, text)
+            elif block_type in {"thinking", "reasoning"}:
+                reason = _normalize_reasoning_text(
+                    block.get("thinking", "")
+                    or block.get("reasoning", "")
+                    or block.get("text", "")
+                )
+                if reason:
+                    reasoning_text = _merge_reasoning_fragment(reasoning_text, reason)
+            elif block_type == "tool_use":
+                slot = tool_calls_by_index.setdefault(
+                    block_index,
+                    {
+                        "id": "",
+                        "type": "function",
+                        "name": "",
+                        "arguments": "",
+                    },
+                )
+                slot["id"] = _merge_stream_fragment(slot["id"], _normalize_content_text(block.get("id", "")))
+                slot["name"] = _merge_stream_fragment(slot["name"], _normalize_content_text(block.get("name", "")))
+                raw_input = block.get("input")
+                if raw_input is not None:
+                    slot["arguments"] = _merge_stream_fragment(slot["arguments"], _stringify_arguments(raw_input))
+            continue
+
+        if event_type == "content_block_delta":
+            block_index = _parse_int_like(data.get("index"), 0)
+            delta = data.get("delta") or {}
+            if not isinstance(delta, dict):
+                delta = {}
+            delta_type = _normalize_content_text(delta.get("type", "")).lower()
+            if delta_type == "text_delta":
+                text = _normalize_content_text(delta.get("text", ""))
+                if text:
+                    text_parts.append(text)
+                    _safe_on_token(on_token, text)
+            elif delta_type in {"thinking_delta", "reasoning_delta"}:
+                reason = _normalize_reasoning_text(
+                    delta.get("thinking", "")
+                    or delta.get("reasoning", "")
+                    or delta.get("text", "")
+                )
+                if reason:
+                    reasoning_text = _merge_reasoning_fragment(reasoning_text, reason)
+            elif delta_type == "input_json_delta":
+                slot = tool_calls_by_index.setdefault(
+                    block_index,
+                    {
+                        "id": "",
+                        "type": "function",
+                        "name": "",
+                        "arguments": "",
+                    },
+                )
+                partial = _normalize_content_text(delta.get("partial_json", ""))
+                slot["arguments"] = _merge_stream_fragment(slot["arguments"], partial)
+            continue
+
+        if event_type == "message_delta":
+            delta = data.get("delta") or {}
+            usage = data.get("usage") or {}
+            if isinstance(delta, dict):
+                reason = _normalize_content_text(delta.get("stop_reason", ""))
+                if reason:
+                    finish_reason = reason
+            if isinstance(usage, dict):
+                output_guess = usage.get("output_tokens", usage.get("completion_tokens", completion_tokens))
+                if output_guess is not None:
+                    completion_tokens = _parse_int_like(output_guess, completion_tokens or 0)
+                total_guess = usage.get("total_tokens")
+                if total_guess is not None:
+                    total_tokens = _parse_int_like(total_guess, total_tokens or 0)
+            continue
+
+        if event_type == "message_stop":
+            break
+
+    calls: List[LLMToolCall] = []
+    for idx in sorted(tool_calls_by_index.keys()):
+        item = tool_calls_by_index[idx]
+        call_id = _normalize_content_text(item.get("id", "")) or f"toolu_{idx + 1}"
+        call_name = _normalize_content_text(item.get("name", ""))
+        call_arguments = item.get("arguments", "").strip() or "{}"
+        calls.append(
+            LLMToolCall(
+                id=call_id,
+                type="function",
+                function=LLMFunctionCall(name=call_name, arguments=call_arguments),
+            )
+        )
+
+    normalized = LLMMessage(
+        content="".join(text_parts).strip(),
+        tool_calls=calls or None,
+        reasoning_content=reasoning_text.strip(),
+    )
+    normalized.response_id = response_id
+    normalized.finish_reason = finish_reason
+    if prompt_tokens is not None or completion_tokens is not None or total_tokens is not None:
+        p = int(prompt_tokens or 0)
+        c = int(completion_tokens or 0)
+        t = int(total_tokens or (p + c))
+        normalized.usage_prompt_tokens = p
+        normalized.usage_completion_tokens = c
+        normalized.usage_total_tokens = t
+        normalized.usage_source = "provider"
+    return normalized
+
+
+def _iter_sse_json_events(response: Any):
+    event_name = "message"
+    data_lines: List[str] = []
+
+    while True:
+        raw_line = response.readline()
+        if raw_line in {b"", ""}:
+            if data_lines:
+                payload = "\n".join(data_lines).strip()
+                if payload:
+                    try:
+                        yield event_name, json.loads(payload)
+                    except Exception:
+                        pass
+            break
+
+        if isinstance(raw_line, bytes):
+            line = raw_line.decode("utf-8", errors="ignore")
+        else:
+            line = str(raw_line)
+        line = line.rstrip("\r\n")
+
+        if line.startswith(":"):
+            continue
+
+        if line == "":
+            if data_lines:
+                payload = "\n".join(data_lines).strip()
+                if payload:
+                    try:
+                        yield event_name, json.loads(payload)
+                    except Exception:
+                        pass
+            event_name = "message"
+            data_lines = []
+            continue
+
+        if line.startswith("event:"):
+            event_name = line[6:].strip() or "message"
+            continue
+
+        if line.startswith("data:"):
+            data_lines.append(line[5:].lstrip(" "))
+            continue
+
+
+def _safe_on_token(on_token, token: str) -> None:
+    if not callable(on_token):
+        return
+    if not token:
+        return
+    try:
+        on_token(token)
+    except Exception:
+        pass
+
+
+def _merge_stream_fragment(existing: str, fragment: str) -> str:
+    base = existing or ""
+    piece = fragment or ""
+    if not piece:
+        return base
+    if not base:
+        return piece
+    if piece.startswith(base):
+        return piece
+    if base.endswith(piece):
+        return base
+    return base + piece
+
+
+def _merge_reasoning_fragment(existing: str, fragment: str) -> str:
+    base = (existing or "").strip()
+    piece = (fragment or "").strip()
+    if not piece:
+        return base
+    if not base:
+        return piece
+    merged = _merge_stream_fragment(base, piece)
+    if merged != base:
+        return merged
+    return base
 
 
 def _normalize_openai_message(message: Any) -> LLMMessage:
     content = _normalize_content_text(getattr(message, "content", ""))
+    reasoning_content = _normalize_reasoning_text(getattr(message, "reasoning_content", ""))
+    if not reasoning_content:
+        reasoning_content = _normalize_reasoning_from_content_blocks(getattr(message, "content", None))
     tool_calls: List[LLMToolCall] = []
     for index, call in enumerate(getattr(message, "tool_calls", None) or []):
         function = getattr(call, "function", None)
@@ -778,11 +1121,16 @@ def _normalize_openai_message(message: Any) -> LLMMessage:
                 function=LLMFunctionCall(name=name, arguments=arguments),
             )
         )
-    return LLMMessage(content=content, tool_calls=tool_calls or None)
+    return LLMMessage(
+        content=content,
+        tool_calls=tool_calls or None,
+        reasoning_content=reasoning_content,
+    )
 
 
 def _normalize_anthropic_message(data: Dict[str, Any]) -> LLMMessage:
     text_parts: List[str] = []
+    reasoning_parts: List[str] = []
     tool_calls: List[LLMToolCall] = []
     for index, block in enumerate(data.get("content", []) or []):
         if not isinstance(block, dict):
@@ -790,6 +1138,15 @@ def _normalize_anthropic_message(data: Dict[str, Any]) -> LLMMessage:
         block_type = block.get("type")
         if block_type == "text":
             text_parts.append(_normalize_content_text(block.get("text", "")))
+            continue
+        if block_type in {"thinking", "reasoning"}:
+            reasoning_parts.append(
+                _normalize_reasoning_text(
+                    block.get("thinking", "")
+                    or block.get("reasoning", "")
+                    or block.get("text", "")
+                )
+            )
             continue
         if block_type == "tool_use":
             tool_id = _normalize_content_text(block.get("id", "")) or f"toolu_{index + 1}"
@@ -802,7 +1159,11 @@ def _normalize_anthropic_message(data: Dict[str, Any]) -> LLMMessage:
                     function=LLMFunctionCall(name=name, arguments=arguments),
                 )
             )
-    return LLMMessage(content="".join(text_parts).strip(), tool_calls=tool_calls or None)
+    return LLMMessage(
+        content="".join(text_parts).strip(),
+        tool_calls=tool_calls or None,
+        reasoning_content="\n".join([part for part in reasoning_parts if part]).strip(),
+    )
 
 
 def _normalize_content_text(content: Any) -> str:
@@ -822,6 +1183,83 @@ def _normalize_content_text(content: Any) -> str:
                     parts.append(_normalize_content_text(item.get("text", "")))
         return "".join(parts)
     return str(content)
+
+
+def _normalize_text_content(content: Any) -> str:
+    if content is None:
+        return ""
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts: List[str] = []
+        for item in content:
+            if isinstance(item, str):
+                parts.append(item)
+                continue
+            if not isinstance(item, dict):
+                continue
+            item_type = str(item.get("type", "") or "").strip().lower()
+            if item_type in {"text", "output_text", "input_text"}:
+                parts.append(_normalize_text_content(item.get("text", "")))
+                continue
+            if "text" in item and item_type not in {"reasoning", "thinking", "reasoning_content", "tool_call", "tool_calls", "tool_use"}:
+                parts.append(_normalize_text_content(item.get("text", "")))
+        return "".join(parts)
+    if isinstance(content, dict):
+        item_type = str(content.get("type", "") or "").strip().lower()
+        if item_type in {"text", "output_text", "input_text"}:
+            return _normalize_text_content(content.get("text", ""))
+        if "text" in content and item_type not in {"reasoning", "thinking", "reasoning_content", "tool_call", "tool_calls", "tool_use"}:
+            return _normalize_text_content(content.get("text", ""))
+        return ""
+    return str(content)
+
+
+def _normalize_reasoning_text(content: Any) -> str:
+    if content is None:
+        return ""
+    if isinstance(content, str):
+        return content.strip()
+    if isinstance(content, list):
+        parts: List[str] = []
+        for item in content:
+            if isinstance(item, str):
+                text = item.strip()
+                if text:
+                    parts.append(text)
+                continue
+            if isinstance(item, dict):
+                item_type = str(item.get("type", "") or "").strip().lower()
+                if item_type in {"thinking", "reasoning", "reasoning_content"}:
+                    text = (
+                        _normalize_content_text(item.get("thinking", ""))
+                        or _normalize_content_text(item.get("reasoning", ""))
+                        or _normalize_content_text(item.get("text", ""))
+                    ).strip()
+                    if text:
+                        parts.append(text)
+        return "\n".join(parts).strip()
+    return str(content).strip()
+
+
+def _normalize_reasoning_from_content_blocks(content: Any) -> str:
+    if not isinstance(content, list):
+        return ""
+    parts: List[str] = []
+    for item in content:
+        if not isinstance(item, dict):
+            continue
+        item_type = str(item.get("type", "") or "").strip().lower()
+        if item_type not in {"thinking", "reasoning", "reasoning_content"}:
+            continue
+        text = (
+            _normalize_content_text(item.get("thinking", ""))
+            or _normalize_content_text(item.get("reasoning", ""))
+            or _normalize_content_text(item.get("text", ""))
+        ).strip()
+        if text:
+            parts.append(text)
+    return "\n".join(parts).strip()
 
 
 def _stringify_arguments(arguments: Any) -> str:

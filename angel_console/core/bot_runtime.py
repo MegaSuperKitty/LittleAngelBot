@@ -384,10 +384,21 @@ class BotRuntime:
             role = str(msg.get("role", "")).strip().lower()
             if role == "assistant":
                 content = str(msg.get("content", "") or "")
-                if content.strip():
+                calls = self._parse_tool_calls(msg.get("tool_calls") or msg.get("toolCalls") or msg.get("toolcalls"))
+                if calls:
+                    reason = self._extract_assistant_reason(msg).strip()
+                    if reason:
+                        normalized.append(
+                            {
+                                "role": "system",
+                                "kind": "thinking_card",
+                                "content": reason,
+                                "streaming": False,
+                            }
+                        )
+                elif content.strip():
                     normalized.append({"role": "assistant", "content": content, "streaming": False})
 
-                calls = self._parse_tool_calls(msg.get("tool_calls") or msg.get("toolCalls") or msg.get("toolcalls"))
                 for call in calls:
                     fn = {}
                     if isinstance(call.get("function"), dict):
@@ -442,6 +453,54 @@ class BotRuntime:
                 normalized.append({"role": role, "content": str(msg.get("content", "") or ""), "streaming": False})
 
         return normalized
+
+    def _extract_assistant_reason(self, msg: Dict[str, Any]) -> str:
+        for key in ("reasoning_content", "reasoning", "reason"):
+            text = self._extract_reason_text(msg.get(key))
+            if text:
+                return text
+        return self._extract_reason_text(msg.get("content"))
+
+    def _extract_reason_text(self, value: Any) -> str:
+        if value is None:
+            return ""
+        if isinstance(value, str):
+            return value.strip()
+        if isinstance(value, list):
+            parts: List[str] = []
+            for item in value:
+                if isinstance(item, str):
+                    text = item.strip()
+                    if text:
+                        parts.append(text)
+                    continue
+                if not isinstance(item, dict):
+                    continue
+                item_type = str(item.get("type", "") or "").strip().lower()
+                if item_type not in {"thinking", "reasoning", "reasoning_content", "text", "output_text", "input_text"}:
+                    continue
+                text = str(
+                    item.get("thinking")
+                    or item.get("reasoning")
+                    or item.get("text")
+                    or ""
+                ).strip()
+                if text:
+                    parts.append(text)
+            return "".join(parts).strip()
+        if isinstance(value, dict):
+            item_type = str(value.get("type", "") or "").strip().lower()
+            if item_type in {"thinking", "reasoning", "reasoning_content", "text", "output_text", "input_text"}:
+                return str(
+                    value.get("thinking")
+                    or value.get("reasoning")
+                    or value.get("text")
+                    or ""
+                ).strip()
+            if "text" in value:
+                return str(value.get("text") or "").strip()
+            return ""
+        return str(value).strip()
 
     def _parse_tool_calls(self, value: Any) -> List[Dict[str, Any]]:
         if isinstance(value, list):
