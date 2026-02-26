@@ -511,6 +511,16 @@ body::before {
   color: #b6f4e3;
 }
 
+.msg.thinking {
+  justify-self: start;
+  max-width: min(86%, 860px);
+  border-color: rgba(255, 215, 126, 0.42);
+  border-style: solid;
+  background: linear-gradient(160deg, rgba(38, 33, 19, 0.92), rgba(22, 19, 12, 0.94));
+  color: #ffe7bf;
+  box-shadow: inset 0 0 0 1px rgba(255, 215, 126, 0.14);
+}
+
 .msg.markdown {
   white-space: normal;
 }
@@ -1129,12 +1139,18 @@ body::before {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  min-width: 0;
 }
 
 .profile-name {
   margin: 0;
   font-size: 16px;
   font-weight: 700;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1 1 auto;
 }
 
 .profile-status {
@@ -1143,10 +1159,12 @@ body::before {
   padding: 2px 8px;
   border: 1px solid var(--line);
   color: var(--text-soft);
-  max-width: 240px;
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  flex: 0 1 180px;
+  min-width: 0;
 }
 
 .profile-status.active {
@@ -1158,6 +1176,7 @@ body::before {
   font-size: 12px;
   color: var(--text-soft);
   line-height: 1.4;
+  overflow-wrap: anywhere;
   word-break: break-word;
 }
 

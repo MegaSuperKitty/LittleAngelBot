@@ -425,6 +425,7 @@
     currentRequestId: "",
     waitingHuman: false,
     liveToolCardByStep: {},
+    liveThinkingByStep: {},
     searchStatus: null,
     searchResults: [],
     searchQuery: "",
@@ -669,6 +670,48 @@
 
   const toolSummaryLabel = (toolName) => `${zhen("\u8c03\u7528\u5de5\u5177", "Tool Call")}: ${toolName || "tool"}`;
 
+  const normalizeReasonText = (value) => {
+    if (value === null || value === undefined) return "";
+    if (typeof value === "string") return value.trim();
+    if (Array.isArray(value)) {
+      const parts = [];
+      value.forEach((item) => {
+        if (typeof item === "string") {
+          const text = item.trim();
+          if (text) parts.push(text);
+          return;
+        }
+        if (!item || typeof item !== "object") return;
+        const typ = String(item.type || "").trim().toLowerCase();
+        if (!["thinking", "reasoning", "reasoning_content", "text", "output_text", "input_text"].includes(typ)) return;
+        const text = String(item.thinking || item.reasoning || item.text || "").trim();
+        if (text) parts.push(text);
+      });
+      return parts.join("").trim();
+    }
+    if (value && typeof value === "object") {
+      const typ = String(value.type || "").trim().toLowerCase();
+      if (["thinking", "reasoning", "reasoning_content", "text", "output_text", "input_text"].includes(typ)) {
+        return String(value.thinking || value.reasoning || value.text || "").trim();
+      }
+      if ("text" in value) return String(value.text || "").trim();
+      return "";
+    }
+    return String(value).trim();
+  };
+
+  const extractAssistantReason = (msg, fallbackContent = "") => {
+    const direct = normalizeReasonText(msg?.reasoning_content ?? msg?.reasoning ?? msg?.reason ?? "");
+    if (direct) return direct;
+    return normalizeReasonText(fallbackContent || "");
+  };
+
+  const withThinkingPrefix = (content) => {
+    const text = String(content || "").trim();
+    if (!text) return "Thinking:";
+    return /^thinking\s*:/i.test(text) ? text : `Thinking: ${text}`;
+  };
+
   async function api(path, options = {}) {
     const requestOptions = { ...(options || {}) };
     const method = String(requestOptions.method || "GET").trim().toUpperCase();
@@ -787,6 +830,15 @@
 
     rows.forEach((msg) => {
       if (!msg || typeof msg !== "object") return;
+      if (msg.kind === "thinking_card") {
+        normalized.push({
+          role: "system",
+          kind: "thinking_card",
+          content: normalizeReasonText(msg.content || msg.reason || ""),
+          streaming: false,
+        });
+        return;
+      }
       if (msg.kind === "tool_card") {
         const card = {
           role: "system",
@@ -806,11 +858,20 @@
 
       if (role === "assistant") {
         const content = String(msg.content || "");
-        if (content.trim()) {
+        const calls = parseToolCalls(msg.tool_calls ?? msg.toolCalls ?? msg.toolcalls);
+        if (calls.length) {
+          const reason = extractAssistantReason(msg, content);
+          if (reason) {
+            normalized.push({
+              role: "system",
+              kind: "thinking_card",
+              content: reason,
+              streaming: false,
+            });
+          }
+        } else if (content.trim()) {
           normalized.push({ role: "assistant", content, streaming: false });
         }
-
-        const calls = parseToolCalls(msg.tool_calls ?? msg.toolCalls ?? msg.toolcalls);
         calls.forEach((call) => {
           const fn = call && call.function ? call.function : call && call.func ? call.func : {};
           const toolName = String(fn.name || call.name || call.tool_name || "tool");
@@ -904,6 +965,13 @@
   function renderMessages() {
     refs.chatMessages.innerHTML = "";
     (state.messages || []).forEach((msg) => {
+      if (msg.kind === "thinking_card") {
+        const node = document.createElement("div");
+        node.className = "msg thinking";
+        node.textContent = withThinkingPrefix(msg.content || "");
+        refs.chatMessages.appendChild(node);
+        return;
+      }
       if (msg.kind === "tool_card") {
         const toolName = String(msg.tool_name || "tool");
         const details = document.createElement("details");
@@ -957,6 +1025,7 @@
   function clearEvents() {
     state.events = [];
     state.liveToolCardByStep = {};
+    state.liveThinkingByStep = {};
     renderEvents();
   }
 
@@ -1021,6 +1090,25 @@
     };
     state.messages.push(msg);
     if (step) state.liveToolCardByStep[step] = state.messages.length - 1;
+    renderMessages();
+  }
+
+  function appendThinkingCardFromEvent(payload) {
+    const content = normalizeReasonText(payload?.content || payload?.reason || "");
+    if (!content) return;
+    const step = String(payload?.step ?? "");
+    const msg = {
+      role: "system",
+      kind: "thinking_card",
+      content,
+      streaming: false,
+    };
+    if (step && Number.isInteger(state.liveThinkingByStep[step])) {
+      state.messages[state.liveThinkingByStep[step]] = msg;
+    } else {
+      state.messages.push(msg);
+      if (step) state.liveThinkingByStep[step] = state.messages.length - 1;
+    }
     renderMessages();
   }
 
@@ -1131,6 +1219,7 @@
         break;
       case "assistant_reason":
         appendEvent("assistant_reason", payload);
+        appendThinkingCardFromEvent(payload);
         break;
       case "tool_before":
         appendEvent("tool_before", payload);
