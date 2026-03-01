@@ -39,6 +39,8 @@ class RetrievalEngine:
         self._indexing = False
         self._ready = False
         self._last_error = ""
+        self._embedder_watch_stop = threading.Event()
+        self._embedder_watch_thread: Optional[threading.Thread] = None
 
         self.source = SessionSourceLoader(self.history_dir)
         self.store = SQLiteRetrievalStore(self.db_path)
@@ -70,10 +72,14 @@ class RetrievalEngine:
         force = bool((last_embedder and last_embedder != self.embedder.name) or chunking_changed)
         self.reindex_now(force=force)
         self.watcher.start()
+        self._start_embedder_watch()
         self._ready = True
         return self.status_dict()
 
     def stop(self) -> None:
+        self._embedder_watch_stop.set()
+        if self._embedder_watch_thread and self._embedder_watch_thread.is_alive():
+            self._embedder_watch_thread.join(timeout=1.0)
         self.watcher.stop()
         self.store.close()
 
@@ -133,6 +139,31 @@ class RetrievalEngine:
             self.reindex_now(force=False)
         except Exception as exc:
             self._last_error = str(exc)
+
+    def _start_embedder_watch(self) -> None:
+        if self._embedder_watch_thread and self._embedder_watch_thread.is_alive():
+            return
+        self._embedder_watch_stop.clear()
+        self._embedder_watch_thread = threading.Thread(
+            target=self._embedder_watch_loop,
+            name="retrieval-embedder-watch",
+            daemon=True,
+        )
+        self._embedder_watch_thread.start()
+
+    def _embedder_watch_loop(self) -> None:
+        while not self._embedder_watch_stop.wait(2.0):
+            try:
+                if self._indexing:
+                    continue
+                current = str(getattr(self.embedder, "name", "") or "")
+                last = self.store.get_meta("last_embedder", "")
+                # Embedder upgraded (e.g. hash -> sentence-transformers):
+                # force a full reindex so stored vectors match query vectors.
+                if current and last and current != last:
+                    self.reindex_now(force=True)
+            except Exception as exc:
+                self._last_error = str(exc)
 
     def _resolve_chunking_config(self, embedder) -> ChunkingConfig:
         env_target = self._parse_int_env("RETRIEVAL_CHUNK_TARGET_TOKENS")
