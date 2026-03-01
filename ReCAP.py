@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""ReCAP: recursive planning with re-injection on top of ReAct."""
+"""ReCAP: plan-and-solve with re-injection on top of ReAct (single-level)."""
 
 from __future__ import annotations
 
@@ -24,6 +24,7 @@ class ReCAPAgent:
         context_manager: Optional[ReActContextManager] = None,
     ):
         self.base_agent = base_agent
+        # Kept for backward compatibility; recursion is intentionally disabled.
         self.max_depth = max_depth
         self.max_subtasks = max_subtasks
         self.max_steps = max_steps
@@ -37,7 +38,7 @@ class ReCAPAgent:
         if not task_text:
             return "", []
 
-        final_text = self._solve(task_text, messages, tools, depth=0, cancel_checker=cancel_checker)
+        final_text = self._solve(task_text, messages, tools, cancel_checker=cancel_checker)
         return final_text, []
 
     def _solve(
@@ -45,7 +46,6 @@ class ReCAPAgent:
         task_text: str,
         messages: List[Dict[str, str]],
         tools,
-        depth: int,
         cancel_checker=None,
     ) -> str:
         if cancel_checker and cancel_checker():
@@ -83,10 +83,9 @@ class ReCAPAgent:
             self.context_manager.append_message({"role": "user", "content": f"[Subtask] {subtask}"})
             messages = self.context_manager.get_messages()
 
-            if is_primitive or depth >= self.max_depth:
-                result, _ = self.base_agent.run(tools=tools, cancel_checker=cancel_checker)
-            else:
-                result = self._solve(subtask, messages, tools, depth + 1, cancel_checker=cancel_checker)
+            # Single-level execution only: no recursive decomposition.
+            # `is_primitive` is still preserved in plans for compatibility/observability.
+            result, _ = self.base_agent.run(tools=tools, cancel_checker=cancel_checker)
             messages = self.context_manager.get_messages()
             last_result = result
 

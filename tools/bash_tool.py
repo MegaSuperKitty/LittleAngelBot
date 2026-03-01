@@ -5,6 +5,7 @@ from __future__ import annotations
 
 from typing import Optional
 import os
+import shutil
 import subprocess
 
 from tool import Tool
@@ -13,7 +14,7 @@ from .path_utils import normalize_root, resolve_relative_path, require_existing_
 
 
 class BashTool(Tool):
-    """执行 PowerShell 命令并返回输出。.
+    """执行 shell 命令并返回输出。.
     
     Attributes:
         _agent_root (Any): Instance field for agent root.
@@ -29,10 +30,11 @@ class BashTool(Tool):
             None: This method does not return a value.
         """
         self._agent_root = normalize_root(agent_root or os.getcwd())
+        self._runner = self._detect_runner()
         super().__init__(
             name="bash",
             description=(
-                "Execute a PowerShell command and return its output. "
+                "Execute a shell command and return its output. "
                 "All paths are resolved under the agent working directory."
             ),
             parameters={
@@ -75,12 +77,10 @@ class BashTool(Tool):
         except ValueError:
             return "工作目录不存在，请检查路径。"
 
-        completed = subprocess.run(
-            ["powershell", "-NoProfile", "-Command", command],
-            capture_output=True,
-            text=True,
-            cwd=cwd,
-        )
+        if not self._runner:
+            return "未找到可用命令执行器（需要 powershell/pwsh/bash/sh 之一）。"
+        command = self._normalize_command_for_runner(command)
+        completed = subprocess.run(self._runner + [command], capture_output=True, text=True, cwd=cwd)
         stdout = completed.stdout or ""
         stderr = completed.stderr or ""
         output = stdout.strip()
@@ -106,3 +106,27 @@ class BashTool(Tool):
             return resolve_relative_path(self._agent_root, workdir)
         except ValueError:
             return self._agent_root
+
+    def _detect_runner(self):
+        if os.name == "nt":
+            if shutil.which("powershell"):
+                return ["powershell", "-NoProfile", "-Command"]
+            if shutil.which("pwsh"):
+                return ["pwsh", "-NoProfile", "-Command"]
+            return None
+        if shutil.which("bash"):
+            return ["bash", "-lc"]
+        if shutil.which("sh"):
+            return ["sh", "-lc"]
+        return None
+
+    def _normalize_command_for_runner(self, command: str) -> str:
+        text = str(command or "").strip()
+        if not text:
+            return text
+        # Compatibility: PowerShell-style command lookup on POSIX shells.
+        if os.name != "nt" and text.lower().startswith("get-command "):
+            target = text[len("Get-Command ") :].strip()
+            if target:
+                return f"command -v {target}"
+        return text
