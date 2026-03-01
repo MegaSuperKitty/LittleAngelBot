@@ -6,6 +6,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import hashlib
 import os
+import threading
 from typing import Iterable, List, Optional
 
 from .types import EmbeddingConfig
@@ -112,6 +113,66 @@ class SentenceTransformerBackend(EmbeddingBackend):
         return max(48, min(384, target))
 
 
+class AsyncSentenceTransformerBackend(EmbeddingBackend):
+    """Non-blocking sentence-transformers backend with hash fallback."""
+
+    def __init__(
+        self,
+        model_name: str,
+        device: str = "cpu",
+        batch_size: int = 32,
+        normalize: bool = True,
+    ):
+        self.model_name = model_name
+        self.device = (device or "cpu").strip() or "cpu"
+        self.batch_size = max(1, int(batch_size or 32))
+        self.normalize = bool(normalize)
+
+        self._fallback = HashEmbeddingBackend()
+        self._active: EmbeddingBackend = self._fallback
+        self._lock = threading.Lock()
+        self._loading = True
+        self._last_error = ""
+        self.name = self._fallback.name
+
+        self._loader = threading.Thread(target=self._load_model, name="retrieval-embed-loader", daemon=True)
+        self._loader.start()
+
+    def _load_model(self) -> None:
+        try:
+            backend = SentenceTransformerBackend(
+                model_name=self.model_name,
+                device=self.device,
+                batch_size=self.batch_size,
+                normalize=self.normalize,
+            )
+            with self._lock:
+                self._active = backend
+                self.name = backend.name
+                self._last_error = ""
+        except Exception as exc:
+            with self._lock:
+                self._last_error = str(exc)
+        finally:
+            self._loading = False
+
+    def embed(self, texts: Iterable[str]) -> List[List[float]]:
+        with self._lock:
+            backend = self._active
+        return backend.embed(texts)
+
+    def recommended_max_tokens(self) -> Optional[int]:
+        with self._lock:
+            backend = self._active
+        return backend.recommended_max_tokens()
+
+    def loading(self) -> bool:
+        return bool(self._loading)
+
+    def last_error(self) -> str:
+        return self._last_error
+
+
 def build_embedding_config_from_env() -> EmbeddingConfig:
     provider = os.getenv("RETRIEVAL_EMBED_PROVIDER", "sentence_transformers").strip().lower() or "sentence_transformers"
     model = os.getenv("RETRIEVAL_EMBED_MODEL", "").strip() or "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
@@ -136,8 +197,21 @@ def build_embedding_config_from_env() -> EmbeddingConfig:
 def build_embedder(config: Optional[EmbeddingConfig] = None) -> EmbeddingBackend:
     cfg = config or build_embedding_config_from_env()
     provider = (cfg.provider or "sentence_transformers").strip().lower()
+    async_bootstrap = os.getenv("RETRIEVAL_EMBED_ASYNC_BOOTSTRAP", "1").strip().lower() not in {
+        "0",
+        "false",
+        "no",
+        "off",
+    }
 
     if provider in {"sentence_transformers", "sentence-transformers", "st", "local", "auto"}:
+        if async_bootstrap:
+            return AsyncSentenceTransformerBackend(
+                model_name=cfg.model,
+                device=cfg.device,
+                batch_size=cfg.batch_size,
+                normalize=cfg.normalize,
+            )
         try:
             return SentenceTransformerBackend(
                 model_name=cfg.model,
