@@ -25,6 +25,14 @@ from .stream_bus import EventStreamBus
 class BotRuntime:
     """Single runtime coordinating bot execution, traces, and SSE queues."""
 
+    _CONSOLE_HIDDEN_PREFIXES = (
+        "[system message]",
+        "[recap plan]",
+        "[recap update]",
+        "[recap reinject]",
+        "[subtask]",
+    )
+
     def __init__(
         self,
         history_dir: str,
@@ -372,6 +380,84 @@ class BotRuntime:
             return "cli"
         return "unknown"
 
+    def _make_console_text_row(self, role: str, content: Any, streaming: bool = False) -> Optional[Dict[str, Any]]:
+        text = str(content or "")
+        if not text.strip() or self._should_hide_console_message(text):
+            return None
+        normalized_role = str(role or "").strip().lower() or "assistant"
+        if normalized_role == "tool":
+            normalized_role = "system"
+        return {
+            "role": normalized_role,
+            "kind": "text",
+            "content": text,
+            "streaming": bool(streaming),
+        }
+
+    def _make_console_thinking_row(self, content: Any) -> Optional[Dict[str, Any]]:
+        text = str(content or "").strip()
+        if not text:
+            return None
+        return {
+            "role": "assistant",
+            "kind": "thinking",
+            "content": text,
+            "streaming": False,
+        }
+
+    def _make_console_tool_card_row(
+        self,
+        tool_name: Any = "tool",
+        tool_call_id: Any = "",
+        input_text: Any = "",
+        output_text: Any = "",
+        streaming: bool = False,
+    ) -> Dict[str, Any]:
+        return {
+            "role": "system",
+            "kind": "tool_card",
+            "tool_name": str(tool_name or "tool"),
+            "tool_call_id": str(tool_call_id or ""),
+            "input_text": self._normalize_tool_payload(input_text),
+            "output_text": self._normalize_tool_payload(output_text),
+            "streaming": bool(streaming),
+        }
+
+    def _append_console_row(
+        self,
+        rows: List[Dict[str, Any]],
+        row: Optional[Dict[str, Any]],
+        pending_by_call_id: Dict[str, Dict[str, Any]],
+    ) -> Optional[Dict[str, Any]]:
+        if not row:
+            return None
+        rows.append(row)
+        if row.get("kind") == "tool_card" and row.get("tool_call_id"):
+            pending_by_call_id[str(row["tool_call_id"])] = row
+        return row
+
+    def _normalize_console_render_row(self, msg: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        kind = str(msg.get("kind", "") or "").strip().lower()
+        if not kind:
+            return None
+        if kind == "text":
+            return self._make_console_text_row(
+                msg.get("role", "assistant"),
+                msg.get("content", ""),
+                bool(msg.get("streaming", False)),
+            )
+        if kind == "thinking":
+            return self._make_console_thinking_row(msg.get("content", ""))
+        if kind == "tool_card":
+            return self._make_console_tool_card_row(
+                tool_name=msg.get("tool_name") or msg.get("name") or "tool",
+                tool_call_id=msg.get("tool_call_id") or msg.get("toolCallId") or "",
+                input_text=msg.get("input_text") or msg.get("input") or "",
+                output_text=msg.get("output_text") or msg.get("output") or msg.get("result") or "",
+                streaming=bool(msg.get("streaming", False)),
+            )
+        return None
+
     def _normalize_messages_for_console(self, messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         rows = messages if isinstance(messages, list) else []
         normalized: List[Dict[str, Any]] = []
@@ -381,23 +467,26 @@ class BotRuntime:
             if not isinstance(msg, dict):
                 continue
 
+            render_row = self._normalize_console_render_row(msg)
+            if render_row is not None:
+                self._append_console_row(normalized, render_row, pending_by_call_id)
+                continue
+
             role = str(msg.get("role", "")).strip().lower()
             if role == "assistant":
-                content = str(msg.get("content", "") or "")
                 calls = self._parse_tool_calls(msg.get("tool_calls") or msg.get("toolCalls") or msg.get("toolcalls"))
                 if calls:
-                    reason = self._extract_assistant_reason(msg).strip()
-                    if reason:
-                        normalized.append(
-                            {
-                                "role": "system",
-                                "kind": "thinking_card",
-                                "content": reason,
-                                "streaming": False,
-                            }
-                        )
-                elif content.strip():
-                    normalized.append({"role": "assistant", "content": content, "streaming": False})
+                    self._append_console_row(
+                        normalized,
+                        self._make_console_thinking_row(msg.get("reasoning_content", "")),
+                        pending_by_call_id,
+                    )
+
+                self._append_console_row(
+                    normalized,
+                    self._make_console_text_row("assistant", msg.get("content", ""), False),
+                    pending_by_call_id,
+                )
 
                 for call in calls:
                     fn = {}
@@ -406,22 +495,14 @@ class BotRuntime:
                     elif isinstance(call.get("func"), dict):
                         fn = call.get("func") or {}
 
-                    tool_name = str(fn.get("name") or call.get("name") or call.get("tool_name") or "tool")
-                    call_id = str(call.get("id") or call.get("tool_call_id") or call.get("toolCallId") or "")
-                    input_text = self._normalize_tool_payload(fn.get("arguments") if isinstance(fn, dict) else "")
-
-                    card = {
-                        "role": "system",
-                        "kind": "tool_card",
-                        "tool_name": tool_name,
-                        "tool_call_id": call_id,
-                        "input_text": input_text,
-                        "output_text": "",
-                        "streaming": False,
-                    }
-                    normalized.append(card)
-                    if call_id:
-                        pending_by_call_id[call_id] = card
+                    card = self._make_console_tool_card_row(
+                        tool_name=fn.get("name") or call.get("name") or call.get("tool_name") or "tool",
+                        tool_call_id=call.get("id") or call.get("tool_call_id") or call.get("toolCallId") or "",
+                        input_text=fn.get("arguments") if isinstance(fn, dict) else "",
+                        output_text="",
+                        streaming=False,
+                    )
+                    self._append_console_row(normalized, card, pending_by_call_id)
                 continue
 
             is_tool_like = role == "tool" or bool(msg.get("tool_call_id") or msg.get("toolCallId"))
@@ -436,71 +517,34 @@ class BotRuntime:
                     if not pending.get("tool_name") or pending.get("tool_name") == "tool":
                         pending["tool_name"] = tool_name
                 else:
-                    normalized.append(
-                        {
-                            "role": "system",
-                            "kind": "tool_card",
-                            "tool_name": tool_name,
-                            "tool_call_id": call_id,
-                            "input_text": "",
-                            "output_text": output,
-                            "streaming": False,
-                        }
+                    self._append_console_row(
+                        normalized,
+                        self._make_console_tool_card_row(
+                            tool_name=tool_name,
+                            tool_call_id=call_id,
+                            input_text="",
+                            output_text=output,
+                            streaming=False,
+                        ),
+                        pending_by_call_id,
                     )
                 continue
 
             if role in {"user", "system"}:
-                normalized.append({"role": role, "content": str(msg.get("content", "") or ""), "streaming": False})
+                self._append_console_row(
+                    normalized,
+                    self._make_console_text_row(role, msg.get("content", ""), False),
+                    pending_by_call_id,
+                )
 
         return normalized
 
-    def _extract_assistant_reason(self, msg: Dict[str, Any]) -> str:
-        for key in ("reasoning_content", "reasoning", "reason"):
-            text = self._extract_reason_text(msg.get(key))
-            if text:
-                return text
-        return self._extract_reason_text(msg.get("content"))
-
-    def _extract_reason_text(self, value: Any) -> str:
-        if value is None:
-            return ""
-        if isinstance(value, str):
-            return value.strip()
-        if isinstance(value, list):
-            parts: List[str] = []
-            for item in value:
-                if isinstance(item, str):
-                    text = item.strip()
-                    if text:
-                        parts.append(text)
-                    continue
-                if not isinstance(item, dict):
-                    continue
-                item_type = str(item.get("type", "") or "").strip().lower()
-                if item_type not in {"thinking", "reasoning", "reasoning_content", "text", "output_text", "input_text"}:
-                    continue
-                text = str(
-                    item.get("thinking")
-                    or item.get("reasoning")
-                    or item.get("text")
-                    or ""
-                ).strip()
-                if text:
-                    parts.append(text)
-            return "".join(parts).strip()
-        if isinstance(value, dict):
-            item_type = str(value.get("type", "") or "").strip().lower()
-            if item_type in {"thinking", "reasoning", "reasoning_content", "text", "output_text", "input_text"}:
-                return str(
-                    value.get("thinking")
-                    or value.get("reasoning")
-                    or value.get("text")
-                    or ""
-                ).strip()
-            if "text" in value:
-                return str(value.get("text") or "").strip()
-            return ""
-        return str(value).strip()
+    def _should_hide_console_message(self, content: Any) -> bool:
+        text = str(content or "")
+        if not text.strip():
+            return False
+        lowered = text.lstrip().lower()
+        return any(lowered.startswith(prefix) for prefix in self._CONSOLE_HIDDEN_PREFIXES)
 
     def _parse_tool_calls(self, value: Any) -> List[Dict[str, Any]]:
         if isinstance(value, list):

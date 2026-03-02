@@ -425,7 +425,6 @@
     currentRequestId: "",
     waitingHuman: false,
     liveToolCardByStep: {},
-    liveThinkingByStep: {},
     searchStatus: null,
     searchResults: [],
     searchQuery: "",
@@ -668,49 +667,21 @@
     return [];
   };
 
+  const HIDDEN_CHAT_PREFIXES = [
+    "[system message]",
+    "[recap plan]",
+    "[recap update]",
+    "[recap reinject]",
+    "[subtask]",
+  ];
+
+  const shouldHideConsoleMessage = (value) => {
+    const text = String(value || "");
+    if (!text.trim()) return false;
+    const lowered = text.trimStart().toLowerCase();
+    return HIDDEN_CHAT_PREFIXES.some((prefix) => lowered.startsWith(prefix));
+  };
   const toolSummaryLabel = (toolName) => `${zhen("\u8c03\u7528\u5de5\u5177", "Tool Call")}: ${toolName || "tool"}`;
-
-  const normalizeReasonText = (value) => {
-    if (value === null || value === undefined) return "";
-    if (typeof value === "string") return value.trim();
-    if (Array.isArray(value)) {
-      const parts = [];
-      value.forEach((item) => {
-        if (typeof item === "string") {
-          const text = item.trim();
-          if (text) parts.push(text);
-          return;
-        }
-        if (!item || typeof item !== "object") return;
-        const typ = String(item.type || "").trim().toLowerCase();
-        if (!["thinking", "reasoning", "reasoning_content", "text", "output_text", "input_text"].includes(typ)) return;
-        const text = String(item.thinking || item.reasoning || item.text || "").trim();
-        if (text) parts.push(text);
-      });
-      return parts.join("").trim();
-    }
-    if (value && typeof value === "object") {
-      const typ = String(value.type || "").trim().toLowerCase();
-      if (["thinking", "reasoning", "reasoning_content", "text", "output_text", "input_text"].includes(typ)) {
-        return String(value.thinking || value.reasoning || value.text || "").trim();
-      }
-      if ("text" in value) return String(value.text || "").trim();
-      return "";
-    }
-    return String(value).trim();
-  };
-
-  const extractAssistantReason = (msg, fallbackContent = "") => {
-    const direct = normalizeReasonText(msg?.reasoning_content ?? msg?.reasoning ?? msg?.reason ?? "");
-    if (direct) return direct;
-    return normalizeReasonText(fallbackContent || "");
-  };
-
-  const withThinkingPrefix = (content) => {
-    const text = String(content || "").trim();
-    if (!text) return "Thinking:";
-    return /^thinking\s*:/i.test(text) ? text : `Thinking: ${text}`;
-  };
 
   async function api(path, options = {}) {
     const requestOptions = { ...(options || {}) };
@@ -823,6 +794,78 @@
       state.healthOnline === null ? t("service_checking") : state.healthOnline ? t("service_online") : t("service_offline");
   }
 
+  const createTextMessageRow = (role, content, streaming = false, allowEmpty = false) => {
+    const text = String(content || "");
+    if (!allowEmpty && !text.trim()) return null;
+    if (text.trim() && shouldHideConsoleMessage(text)) return null;
+    const normalizedRole = String(role || "assistant").trim().toLowerCase() || "assistant";
+    return {
+      role: normalizedRole === "tool" ? "system" : normalizedRole,
+      kind: "text",
+      content: text,
+      streaming: Boolean(streaming),
+    };
+  };
+
+  const createThinkingMessageRow = (content) => {
+    const text = String(content || "").trim();
+    if (!text) return null;
+    return {
+      role: "assistant",
+      kind: "thinking",
+      content: text,
+      streaming: false,
+    };
+  };
+
+  const createToolCardMessageRow = (toolName, toolCallId = "", inputText = "", outputText = "", streaming = false) => ({
+    role: "system",
+    kind: "tool_card",
+    tool_name: String(toolName || "tool"),
+    tool_call_id: String(toolCallId || ""),
+    input_text: normalizeToolPayload(inputText),
+    output_text: normalizeToolPayload(outputText),
+    streaming: Boolean(streaming),
+  });
+
+  const pushMessageRow = (rows, row, pendingToolCardsById) => {
+    if (!row) return null;
+    rows.push(row);
+    if (row.kind === "tool_card" && row.tool_call_id) {
+      pendingToolCardsById.set(row.tool_call_id, row);
+    }
+    return row;
+  };
+
+  const normalizeRenderMessageRow = (msg) => {
+    const kind = String(msg?.kind || "").trim().toLowerCase();
+    if (!kind) return null;
+    if (kind === "text") {
+      return createTextMessageRow(msg.role || "assistant", msg.content || "", Boolean(msg.streaming), Boolean(msg.streaming));
+    }
+    if (kind === "thinking") {
+      return createThinkingMessageRow(msg.content || "");
+    }
+    if (kind === "tool_card") {
+      return createToolCardMessageRow(
+        msg.tool_name || msg.name || "tool",
+        msg.tool_call_id || msg.toolCallId || "",
+        msg.input_text || msg.input || "",
+        msg.output_text || msg.output || msg.result || "",
+        Boolean(msg.streaming)
+      );
+    }
+    return null;
+  };
+
+  const coerceRenderMessageRow = (msg) => {
+    if (!msg || typeof msg !== "object") return null;
+    const renderRow = normalizeRenderMessageRow(msg);
+    if (renderRow) return renderRow;
+    const role = String(msg.role || "assistant").trim().toLowerCase() || "assistant";
+    return createTextMessageRow(role, msg.content || "", Boolean(msg.streaming), Boolean(msg.streaming && role === "assistant"));
+  };
+
   function normalizeMessages(messages) {
     const rows = Array.isArray(messages) ? messages : [];
     const normalized = [];
@@ -830,63 +873,36 @@
 
     rows.forEach((msg) => {
       if (!msg || typeof msg !== "object") return;
-      if (msg.kind === "thinking_card") {
-        normalized.push({
-          role: "system",
-          kind: "thinking_card",
-          content: normalizeReasonText(msg.content || msg.reason || ""),
-          streaming: false,
-        });
-        return;
-      }
-      if (msg.kind === "tool_card") {
-        const card = {
-          role: "system",
-          kind: "tool_card",
-          tool_name: String(msg.tool_name || msg.name || "tool"),
-          tool_call_id: String(msg.tool_call_id || msg.toolCallId || ""),
-          input_text: normalizeToolPayload(msg.input_text || msg.input || ""),
-          output_text: normalizeToolPayload(msg.output_text || msg.output || msg.result || ""),
-          streaming: false,
-        };
-        normalized.push(card);
-        if (card.tool_call_id) pendingToolCardsById.set(card.tool_call_id, card);
+
+      const renderRow = normalizeRenderMessageRow(msg);
+      if (renderRow) {
+        pushMessageRow(normalized, renderRow, pendingToolCardsById);
         return;
       }
 
       const role = String(msg.role || "").trim().toLowerCase();
 
       if (role === "assistant") {
-        const content = String(msg.content || "");
         const calls = parseToolCalls(msg.tool_calls ?? msg.toolCalls ?? msg.toolcalls);
         if (calls.length) {
-          const reason = extractAssistantReason(msg, content);
-          if (reason) {
-            normalized.push({
-              role: "system",
-              kind: "thinking_card",
-              content: reason,
-              streaming: false,
-            });
-          }
-        } else if (content.trim()) {
-          normalized.push({ role: "assistant", content, streaming: false });
+          pushMessageRow(normalized, createThinkingMessageRow(msg.reasoning_content || ""), pendingToolCardsById);
         }
+
+        pushMessageRow(normalized, createTextMessageRow("assistant", msg.content || "", false), pendingToolCardsById);
+
         calls.forEach((call) => {
           const fn = call && call.function ? call.function : call && call.func ? call.func : {};
-          const toolName = String(fn.name || call.name || call.tool_name || "tool");
-          const callId = String(call.id || call.tool_call_id || call.toolCallId || "");
-          const card = {
-            role: "system",
-            kind: "tool_card",
-            tool_name: toolName,
-            tool_call_id: callId,
-            input_text: normalizeToolPayload(fn.arguments || ""),
-            output_text: "",
-            streaming: false,
-          };
-          normalized.push(card);
-          if (callId) pendingToolCardsById.set(callId, card);
+          pushMessageRow(
+            normalized,
+            createToolCardMessageRow(
+              fn.name || call.name || call.tool_name || "tool",
+              call.id || call.tool_call_id || call.toolCallId || "",
+              fn.arguments || "",
+              "",
+              false
+            ),
+            pendingToolCardsById
+          );
         });
         return;
       }
@@ -904,21 +920,13 @@
             existing.tool_name = toolName;
           }
         } else {
-          normalized.push({
-            role: "system",
-            kind: "tool_card",
-            tool_name: toolName,
-            tool_call_id: callId,
-            input_text: "",
-            output_text: output,
-            streaming: false,
-          });
+          pushMessageRow(normalized, createToolCardMessageRow(toolName, callId, "", output, false), pendingToolCardsById);
         }
         return;
       }
 
       if (role === "user" || role === "system") {
-        normalized.push({ role, content: String(msg.content || ""), streaming: false });
+        pushMessageRow(normalized, createTextMessageRow(role, msg.content || "", false), pendingToolCardsById);
       }
     });
 
@@ -962,62 +970,88 @@
     });
   }
 
+  function renderToolCardMessage(msg) {
+    const toolName = String(msg.tool_name || "tool");
+    const details = document.createElement("details");
+    details.className = "msg system tool-collapse";
+
+    const summary = document.createElement("summary");
+    summary.className = "tool-collapse-summary";
+    summary.innerHTML = `
+      <span class="tool-collapse-title">${esc(toolSummaryLabel(toolName))}</span>
+      <span class="tool-collapse-arrow"></span>
+    `;
+    details.appendChild(summary);
+
+    const body = document.createElement("div");
+    body.className = "tool-collapse-body";
+    if (msg.input_text) {
+      body.innerHTML += `
+        <div class="tool-collapse-section">
+          <div class="tool-collapse-label">${esc(zhen("\u8f93\u5165", "Input"))}</div>
+          <div class="tool-scroll"><pre>${esc(msg.input_text)}</pre></div>
+        </div>
+      `;
+    }
+    if (msg.output_text) {
+      body.innerHTML += `
+        <div class="tool-collapse-section">
+          <div class="tool-collapse-label">${esc(zhen("\u8f93\u51fa", "Output"))}</div>
+          <div class="tool-scroll"><pre>${esc(msg.output_text)}</pre></div>
+        </div>
+      `;
+    }
+    details.appendChild(body);
+    return details;
+  }
+
+  function renderTextMessage(msg) {
+    const role = msg.role === "tool" ? "system" : msg.role;
+    const node = document.createElement("div");
+    node.className = `msg ${role}`;
+    if (role === "assistant" && !msg.streaming) {
+      node.classList.add("markdown");
+      node.innerHTML = markdownToSafeHtml(msg.content);
+    } else {
+      node.textContent = msg.content;
+    }
+    return node;
+  }
+
+  function renderThinkingMessage(msg) {
+    const node = document.createElement("div");
+    node.className = "msg assistant thinking";
+
+    const label = document.createElement("span");
+    label.className = "thinking-label";
+    label.textContent = "Thinking:";
+
+    const content = document.createElement("span");
+    content.className = "thinking-content";
+    content.textContent = msg.content;
+
+    node.appendChild(label);
+    node.appendChild(content);
+    return node;
+  }
+
   function renderMessages() {
     refs.chatMessages.innerHTML = "";
     (state.messages || []).forEach((msg) => {
-      if (msg.kind === "thinking_card") {
-        const node = document.createElement("div");
-        node.className = "msg thinking";
-        node.textContent = withThinkingPrefix(msg.content || "");
-        refs.chatMessages.appendChild(node);
-        return;
-      }
-      if (msg.kind === "tool_card") {
-        const toolName = String(msg.tool_name || "tool");
-        const details = document.createElement("details");
-        details.className = "msg system tool-collapse";
+      const row = coerceRenderMessageRow(msg);
+      if (!row) return;
 
-        const summary = document.createElement("summary");
-        summary.className = "tool-collapse-summary";
-        summary.innerHTML = `
-          <span class="tool-collapse-title">${esc(toolSummaryLabel(toolName))}</span>
-          <span class="tool-collapse-arrow"></span>
-        `;
-        details.appendChild(summary);
-
-        const body = document.createElement("div");
-        body.className = "tool-collapse-body";
-        if (msg.input_text) {
-          body.innerHTML += `
-            <div class="tool-collapse-section">
-              <div class="tool-collapse-label">${esc(zhen("\u8f93\u5165", "Input"))}</div>
-              <div class="tool-scroll"><pre>${esc(msg.input_text)}</pre></div>
-            </div>
-          `;
-        }
-        if (msg.output_text) {
-          body.innerHTML += `
-            <div class="tool-collapse-section">
-              <div class="tool-collapse-label">${esc(zhen("\u8f93\u51fa", "Output"))}</div>
-              <div class="tool-scroll"><pre>${esc(msg.output_text)}</pre></div>
-            </div>
-          `;
-        }
-        details.appendChild(body);
-        refs.chatMessages.appendChild(details);
+      if (row.kind === "tool_card") {
+        refs.chatMessages.appendChild(renderToolCardMessage(row));
         return;
       }
 
-      const role = msg.role === "tool" ? "system" : msg.role;
-      const node = document.createElement("div");
-      node.className = `msg ${role}`;
-      if (role === "assistant" && !msg.streaming) {
-        node.classList.add("markdown");
-        node.innerHTML = markdownToSafeHtml(msg.content);
-      } else {
-        node.textContent = msg.content;
+      if (row.kind === "thinking") {
+        refs.chatMessages.appendChild(renderThinkingMessage(row));
+        return;
       }
-      refs.chatMessages.appendChild(node);
+
+      refs.chatMessages.appendChild(renderTextMessage(row));
     });
     refs.chatMessages.scrollTop = refs.chatMessages.scrollHeight;
   }
@@ -1025,7 +1059,6 @@
   function clearEvents() {
     state.events = [];
     state.liveToolCardByStep = {};
-    state.liveThinkingByStep = {};
     renderEvents();
   }
 
@@ -1073,42 +1106,26 @@
   }
 
   function appendMessage(role, content, streaming = false) {
-    state.messages.push({ role, content, streaming });
+    const row = createTextMessageRow(role, content, streaming, Boolean(streaming));
+    if (!row) return;
+    state.messages.push(row);
+    renderMessages();
+  }
+
+  function appendThinkingMessage(content) {
+    const row = createThinkingMessageRow(content);
+    if (!row) return;
+    const last = state.messages[state.messages.length - 1];
+    if (last?.kind === "thinking" && String(last.content || "") === row.content) return;
+    state.messages.push(row);
     renderMessages();
   }
 
   function appendToolCardFromEvent(payload) {
     const step = String(payload?.step ?? "");
-    const msg = {
-      role: "system",
-      kind: "tool_card",
-      tool_name: String(payload?.tool_name || "tool"),
-      tool_call_id: "",
-      input_text: normalizeToolPayload(payload?.arguments || ""),
-      output_text: "",
-      streaming: false,
-    };
+    const msg = createToolCardMessageRow(payload?.tool_name || "tool", "", payload?.arguments || "", "", false);
     state.messages.push(msg);
     if (step) state.liveToolCardByStep[step] = state.messages.length - 1;
-    renderMessages();
-  }
-
-  function appendThinkingCardFromEvent(payload) {
-    const content = normalizeReasonText(payload?.content || payload?.reason || "");
-    if (!content) return;
-    const step = String(payload?.step ?? "");
-    const msg = {
-      role: "system",
-      kind: "thinking_card",
-      content,
-      streaming: false,
-    };
-    if (step && Number.isInteger(state.liveThinkingByStep[step])) {
-      state.messages[state.liveThinkingByStep[step]] = msg;
-    } else {
-      state.messages.push(msg);
-      if (step) state.liveThinkingByStep[step] = state.messages.length - 1;
-    }
     renderMessages();
   }
 
@@ -1136,16 +1153,18 @@
   }
 
   function appendAssistantDelta(delta) {
-    if (!state.messages.length || !state.messages[state.messages.length - 1].streaming) {
-      state.messages.push({ role: "assistant", content: "", streaming: true });
+    const last = state.messages[state.messages.length - 1];
+    if (!last || last.kind !== "text" || last.role !== "assistant" || !last.streaming) {
+      state.messages.push(createTextMessageRow("assistant", "", true, true));
     }
     state.messages[state.messages.length - 1].content += delta;
     renderMessages();
   }
 
   function finalizeStreamingAssistant() {
-    if (state.messages.length && state.messages[state.messages.length - 1].streaming) {
-      state.messages[state.messages.length - 1].streaming = false;
+    const last = state.messages[state.messages.length - 1];
+    if (last && last.kind === "text" && last.role === "assistant" && last.streaming) {
+      last.streaming = false;
       renderMessages();
     }
   }
@@ -1219,7 +1238,7 @@
         break;
       case "assistant_reason":
         appendEvent("assistant_reason", payload);
-        appendThinkingCardFromEvent(payload);
+        appendThinkingMessage(payload.content || payload.reasoning_content || "");
         break;
       case "tool_before":
         appendEvent("tool_before", payload);
@@ -2237,17 +2256,167 @@
     }
   }
 
-  const connectivityLabel = (status) => {
-    if (status === "success") return zhen("连通性验证通过", "Connectivity Verified");
-    if (status === "failed") return zhen("连通性验证失败", "Connectivity Check Failed");
-    return zhen("未验证连通性", "Connectivity Not Verified");
-  };
-
   const connectivityClass = (status) => {
     if (status === "success") return "test-success";
     if (status === "failed") return "test-failed";
     return "";
   };
+
+  const modelConnectivityLabel = (status) => {
+    if (status === "success") return zhen("\u8fde\u901a\u6027\u5df2\u9a8c\u8bc1", "Connectivity Verified");
+    if (status === "failed") return zhen("\u8fde\u901a\u6027\u9a8c\u8bc1\u5931\u8d25", "Connectivity Check Failed");
+    return zhen("\u672a\u9a8c\u8bc1\u8fde\u901a\u6027", "Connectivity Not Verified");
+  };
+
+  const modelRoleLabel = (isActive) => (isActive
+    ? zhen("\u5de5\u4f5c\u4e2d", "Active")
+    : zhen("\u53ef\u5207\u6362", "Ready"));
+
+  const modelDisplayValue = (value) => {
+    if (value === null || value === undefined) return "-";
+    const text = String(value).trim();
+    return text || "-";
+  };
+
+  function createModelFacts(fields, extraClass = "") {
+    const list = document.createElement("div");
+    list.className = `model-facts${extraClass ? ` ${extraClass}` : ""}`;
+
+    fields.forEach((field) => {
+      const row = document.createElement("div");
+      row.className = "model-fact";
+
+      const label = document.createElement("span");
+      label.className = "model-fact-label";
+      label.textContent = field.label;
+
+      const value = document.createElement("span");
+      value.className = `model-fact-value${field.mono ? " mono" : ""}`;
+      const displayValue = modelDisplayValue(field.value);
+      value.textContent = displayValue;
+      if (displayValue !== "-") value.title = displayValue;
+
+      row.appendChild(label);
+      row.appendChild(value);
+      list.appendChild(row);
+    });
+
+    return list;
+  }
+
+  function renderModelRuntimeState(modelState, runtime) {
+    refs.modelRuntimeState.innerHTML = "";
+    if (!Object.keys(runtime || {}).length) {
+      refs.modelRuntimeState.textContent = t("runtime_empty");
+      return;
+    }
+
+    const summary = document.createElement("div");
+    summary.className = "model-runtime-summary";
+
+    const current = document.createElement("div");
+    current.className = "model-runtime-current";
+
+    const currentLabel = document.createElement("span");
+    currentLabel.className = "model-runtime-current-label";
+    currentLabel.textContent = zhen("\u5f53\u524d\u5de5\u4f5c\u6a21\u578b", "Active Model");
+
+    const currentValue = document.createElement("strong");
+    currentValue.className = "model-runtime-current-value";
+    const activeProfileId = modelDisplayValue(modelState.active_profile_id);
+    currentValue.textContent = activeProfileId;
+    if (activeProfileId !== "-") currentValue.title = activeProfileId;
+
+    current.appendChild(currentLabel);
+    current.appendChild(currentValue);
+    summary.appendChild(current);
+
+    summary.appendChild(createModelFacts([
+      { label: t("runtime_provider"), value: providerDisplayName(runtime.provider, runtime.provider || "-") },
+      { label: t("runtime_model"), value: runtime.model },
+      { label: t("runtime_base_url"), value: runtime.base_url, mono: true },
+      { label: t("field_temperature"), value: runtime.temperature },
+      { label: t("field_top_p"), value: runtime.top_p },
+    ], "runtime-facts"));
+
+    refs.modelRuntimeState.appendChild(summary);
+  }
+
+  function buildModelProfileCard(profile) {
+    const card = document.createElement("article");
+    card.className = `profile-card${profile.active ? " active" : ""}`;
+
+    const status = profile.connectivity_status || "untested";
+    const statusText = modelConnectivityLabel(status);
+    const statusClass = connectivityClass(status);
+    const statusTip = String(profile.connectivity_detail || "").trim() || statusText;
+
+    const head = document.createElement("div");
+    head.className = "profile-head";
+
+    const titleGroup = document.createElement("div");
+    titleGroup.className = "profile-title-group";
+
+    const name = document.createElement("h4");
+    name.className = "profile-name";
+    const profileId = modelDisplayValue(profile.profile_id);
+    name.textContent = profileId;
+    if (profileId !== "-") name.title = profileId;
+
+    const role = document.createElement("div");
+    role.className = `profile-role${profile.active ? " active" : ""}`;
+    role.textContent = modelRoleLabel(profile.active);
+
+    titleGroup.appendChild(name);
+    titleGroup.appendChild(role);
+
+    const badge = document.createElement("span");
+    badge.className = `profile-status${statusClass ? ` ${statusClass}` : ""}`;
+    badge.textContent = statusText;
+    badge.title = statusTip;
+
+    head.appendChild(titleGroup);
+    head.appendChild(badge);
+
+    const facts = createModelFacts([
+      { label: t("field_provider"), value: providerDisplayName(profile.provider, profile.provider || "-") },
+      { label: t("field_model_name"), value: profile.model, mono: true },
+      { label: t("field_base_url"), value: profile.base_url, mono: true },
+      { label: t("field_api_key"), value: profile.api_key_masked, mono: true },
+      { label: t("field_temperature"), value: profile.temperature },
+      { label: t("field_top_p"), value: profile.top_p },
+    ], "compact profile-details");
+
+    const actions = document.createElement("div");
+    actions.className = "profile-actions";
+
+    const testBtn = document.createElement("button");
+    testBtn.className = "btn-ghost profile-test-btn";
+    testBtn.textContent = zhen("\u6d4b\u8bd5\u8fde\u901a\u6027", "Test Connectivity");
+    testBtn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      testModelProfile(profile.profile_id).catch((err) => alert(`${t("action_failed")}: ${err}`));
+    });
+
+    const deleteBtn = document.createElement("button");
+    deleteBtn.className = "btn-ghost profile-delete-btn";
+    deleteBtn.textContent = t("btn_delete");
+    deleteBtn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      deleteModelProfile(profile.profile_id).catch((err) => alert(`${t("action_failed")}: ${err}`));
+    });
+
+    actions.appendChild(testBtn);
+    actions.appendChild(deleteBtn);
+
+    card.appendChild(head);
+    card.appendChild(facts);
+    card.appendChild(actions);
+
+    card.addEventListener("click", () => activateModelProfile(profile.profile_id).catch((err) => alert(`${t("action_failed")}: ${err}`)));
+
+    return card;
+  }
 
   function renderModels() {
     const modelState = state.modelState || { providers: [], profiles: [], runtime: {} };
@@ -2256,10 +2425,7 @@
 
     renderModelProviderSelect(refs.modelProviderSelect.value);
     refreshModelModalText();
-
-    refs.modelRuntimeState.textContent = !Object.keys(runtime).length
-      ? t("runtime_empty")
-      : `${zhen("当前工作模型", "Active Model")}: ${modelState.active_profile_id || "-"}\n${t("runtime_provider")}: ${providerDisplayName(runtime.provider, runtime.provider || "-")}\n${t("runtime_model")}: ${runtime.model || "-"}\n${t("runtime_base_url")}: ${runtime.base_url || "-"}\nTemperature: ${runtime.temperature == null ? "-" : runtime.temperature}\nTop-p: ${runtime.top_p == null ? "-" : runtime.top_p}`;
+    renderModelRuntimeState(modelState, runtime);
 
     refs.modelProfilesGrid.innerHTML = "";
     if (!profiles.length) {
@@ -2267,50 +2433,11 @@
       return;
     }
 
-    profiles.forEach((p) => {
-      const card = document.createElement("div");
-      card.className = `profile-card ${p.active ? "active" : ""}`;
-
-      const status = p.connectivity_status || "untested";
-      const testLabel = connectivityLabel(status);
-      const statusClass = connectivityClass(status);
-      const roleLabel = p.active ? zhen("工作中", "Active") : zhen("可切换", "Ready");
-      const statusTip = (p.connectivity_detail || testLabel || "").trim();
-
-      card.innerHTML = `
-        <div class="profile-head">
-          <h4 class="profile-name">${esc(p.profile_id)}</h4>
-          <span class="profile-status ${statusClass}" title="${esc(statusTip)}">${esc(testLabel)}</span>
-        </div>
-        <div class="profile-meta">${zhen("状态", "Status")}: ${esc(roleLabel)}</div>
-        <div class="profile-meta">provider=${esc(providerDisplayName(p.provider, p.provider))}</div>
-        <div class="profile-meta">model=${esc(p.model || "-")}</div>
-        <div class="profile-meta">base=${esc(p.base_url || "-")}</div>
-        <div class="profile-meta">api_key=${esc(p.api_key_masked || "-")}</div>
-        <div class="profile-meta">temperature=${p.temperature == null ? "-" : esc(p.temperature)}</div>
-        <div class="profile-meta">top_p=${p.top_p == null ? "-" : esc(p.top_p)}</div>
-        <div class="profile-actions">
-          <button class="btn-ghost profile-test-btn">${zhen("测试连通性", "Test Connectivity")}</button>
-          <button class="btn-ghost profile-delete-btn">${zhen("删除", "Delete")}</button>
-        </div>
-      `;
-
-      card.addEventListener("click", () => activateModelProfile(p.profile_id).catch((err) => alert(`${t("action_failed")}: ${err}`)));
-
-      const testBtn = card.querySelector(".profile-test-btn");
-      testBtn.addEventListener("click", (event) => {
-        event.stopPropagation();
-        testModelProfile(p.profile_id).catch((err) => alert(`${t("action_failed")}: ${err}`));
-      });
-
-      const deleteBtn = card.querySelector(".profile-delete-btn");
-      deleteBtn.addEventListener("click", (event) => {
-        event.stopPropagation();
-        deleteModelProfile(p.profile_id).catch((err) => alert(`${t("action_failed")}: ${err}`));
-      });
-
-      refs.modelProfilesGrid.appendChild(card);
+    const fragment = document.createDocumentFragment();
+    profiles.forEach((profile) => {
+      fragment.appendChild(buildModelProfileCard(profile));
     });
+    refs.modelProfilesGrid.appendChild(fragment);
   }
 
   async function loadModels() {

@@ -8,14 +8,13 @@ import time
 from ReAct import ReActAgent
 from context import ReActContextManager
 from tool import Tool
-from .skill_tool import SkillTool
-from skill_registry import SkillRegistry
+from .skill_tool import SkillRuntime, SkillTool
 
 
 class SubAgentTool(Tool):
-    def __init__(self, available_tools: List[object], skill_registry: SkillRegistry, max_steps: int = 8):
+    def __init__(self, available_tools: List[object], skill_runtime: SkillRuntime, max_steps: int = 8):
         self.available_tools = available_tools
-        self.skill_registry = skill_registry
+        self.skill_runtime = skill_runtime
         self.max_steps = max_steps
         self._user_id: Optional[str] = None
         self._parent_context_path: Optional[str] = None
@@ -61,7 +60,7 @@ class SubAgentTool(Tool):
             return "SubAgent error: parent context path is missing."
 
         allowlist = _normalize_skills(skills)
-        tools = _prepare_tools(self.available_tools, self.skill_registry, allowlist)
+        tools = _prepare_tools(self.available_tools, self.skill_runtime, allowlist)
 
         sub_context_path = _build_sub_context_path(self._parent_context_path)
         context_manager = ReActContextManager(context_path=sub_context_path)
@@ -84,7 +83,7 @@ def _normalize_skills(skills: Optional[List[str]]) -> List[str]:
     return [str(skills).strip()]
 
 
-def _prepare_tools(available_tools: List[object], registry: SkillRegistry, allowlist: Optional[List[str]]):
+def _prepare_tools(available_tools: List[object], skill_runtime: SkillRuntime, allowlist: Optional[List[str]]):
     tools = []
     for tool in available_tools or []:
         if getattr(tool, "name", "") == "sub_agent":
@@ -94,7 +93,7 @@ def _prepare_tools(available_tools: List[object], registry: SkillRegistry, allow
         tools.append(tool)
 
     allowed = allowlist or []
-    tools.append(SkillTool(registry, allowed_skills=allowed))
+    tools.append(skill_runtime.create_tool(allowed_skills=allowed))
     return tools
 
 

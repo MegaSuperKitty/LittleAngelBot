@@ -54,6 +54,12 @@ class SkillRegistry:
         """
         self._cache = self._scan_skills()
 
+    def snapshot(self, refresh: bool = True) -> Dict[str, Tuple[SkillMeta, str]]:
+        """Return a copy of the cached registry state."""
+        if refresh:
+            self.refresh()
+        return {name: (meta, prompt) for name, (meta, prompt) in self._cache.items()}
+
     def list_skills(self) -> List[SkillMeta]:
         """Process list skills.
         
@@ -64,6 +70,10 @@ class SkillRegistry:
             List[SkillMeta]: Collection of matching items.
         """
         self.refresh()
+        return self.list_cached_skills()
+
+    def list_cached_skills(self) -> List[SkillMeta]:
+        """Return the current cached skill metadata without refreshing."""
         return [meta for meta, _ in self._cache.values()]
 
     def get_prompt(self, name: str) -> Optional[str]:
@@ -76,6 +86,10 @@ class SkillRegistry:
             Optional[str]: The resolved prompt value.
         """
         self.refresh()
+        return self.get_cached_prompt(name)
+
+    def get_cached_prompt(self, name: str) -> Optional[str]:
+        """Return a cached prompt without refreshing."""
         item = self._cache.get(name)
         return item[1] if item else None
 
@@ -89,6 +103,10 @@ class SkillRegistry:
             Optional[SkillMeta]: The resolved meta value.
         """
         self.refresh()
+        return self.get_cached_meta(name)
+
+    def get_cached_meta(self, name: str) -> Optional[SkillMeta]:
+        """Return cached metadata without refreshing."""
         item = self._cache.get(name)
         return item[0] if item else None
 
