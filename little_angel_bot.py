@@ -12,7 +12,6 @@ from ReCAP import ReCAPAgent
 from context import LlmSummarizer, ReActContextManager
 from llm_provider import get_response
 from session_manager import SessionManager
-from skill_registry import SkillRegistry
 from tools.alarm_tool import AlarmTool
 from tools.ask_human_tool import AskHumanManager, AskHumanTool
 from tools.bash_tool import BashTool
@@ -25,7 +24,7 @@ from tools.read_tool import ReadTool
 from tools.report_template_tool import ReportTemplateTool
 from tools.skill_executor_tool import SkillExecutorTool
 from tools.skill_init_tool import SkillInitTool
-from tools.skill_tool import SkillTool
+from tools.skill_tool import SkillRuntime, sync_skill_runtime
 from tools.source_compare_tool import SourceCompareTool
 from tools.sub_agent_tool import SubAgentTool
 from tools.thinking_tool import ThinkingTool
@@ -57,13 +56,15 @@ class LittleAngelBot:
         self.context_manager: Optional[ReActContextManager] = None
         self.ask_human_manager = AskHumanManager()
 
-        self.skill_registry = self._load_skill_registry()
-        self.system_prompt = system_prompt or self._default_system_prompt()
+        self.skill_runtime = SkillRuntime(os.path.join(self.project_root, "skills"))
+        self._base_system_prompt = system_prompt or self._default_system_prompt()
+        self.system_prompt = self._base_system_prompt
 
         self._react_hooks = ReActHooks()
         self._react_hook_error_mode = "isolate"
 
         self.tools = self._load_tools()
+        self.refresh_skills()
 
     def handle_message(self, user_id: str, content: str) -> Optional[str]:
         """Process one user message and return assistant text."""
@@ -208,22 +209,7 @@ class LittleAngelBot:
             "- 工具失败后要继续调整策略，不要直接放弃。\n"
             "- 运行环境是 Windows，执行命令前先做安全判断。\n"
             "- 当用户提到某个 skill 时，先调用 skill 工具加载说明，再执行。"
-            + self._skills_summary()
         )
-
-    def _skills_summary(self) -> str:
-        skills = self.skill_registry.list_skills()
-        if not skills:
-            return "\n\n[Skills]\n(No skills available.)"
-        lines = ["\n\n[Skills]"]
-        for meta in skills:
-            if meta.description:
-                lines.append(f"- {meta.name}: {meta.description}")
-            elif meta.when_to_use:
-                lines.append(f"- {meta.name}: {meta.when_to_use}")
-            else:
-                lines.append(f"- {meta.name}")
-        return "\n".join(lines)
 
     def _load_tools(self):
         config = self._load_config()
@@ -257,10 +243,14 @@ class LittleAngelBot:
         tools.append(TimeTool())
         tools.append(AlarmTool(self._handle_system_message))
         tools.append(AskHumanTool(self.ask_human_manager))
-        tools.append(SkillTool(self.skill_registry))
-        tools.append(SubAgentTool(tools, self.skill_registry))
+        self.skill_tool = self.skill_runtime.create_tool(register=True)
+        tools.append(self.skill_tool)
+        tools.append(SubAgentTool(tools, self.skill_runtime))
         tools.append(ThinkingTool())
         return tools
+
+    def refresh_skills(self):
+        return sync_skill_runtime(self)
 
     def _bind_tool_user_context(self, user_id: str, session_path: str, cancel_checker=None) -> None:
         for tool in self.tools:
@@ -327,13 +317,6 @@ class LittleAngelBot:
 
     def cancel_pending_human(self, user_id: str) -> None:
         self.ask_human_manager.cancel(user_id)
-
-    def _load_skill_registry(self) -> SkillRegistry:
-        base_dir = os.path.dirname(__file__)
-        skills_dir = os.path.join(base_dir, "skills")
-        registry = SkillRegistry(skills_dir)
-        registry.refresh()
-        return registry
 
     def _load_config(self) -> dict:
         config_path = os.getenv("LITTLE_ANGEL_CONFIG")

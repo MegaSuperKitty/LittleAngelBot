@@ -13,9 +13,14 @@ def build_react_hooks(emit: Callable[[str, Dict[str, Any]], None]) -> ReActHooks
 
     seen_reason: Set[Tuple[int, str]] = set()
 
+    def _reasoning_content(message: Dict[str, Any]) -> str:
+        if not isinstance(message, dict):
+            return ""
+        return str(message.get("reasoning_content") or "").strip()
+
     def _before_tool(event: ReActHookEvent):
         message = event.message or {}
-        reason = str(message.get("content") or "").strip()
+        reason = _reasoning_content(message)
         key = (event.step, reason)
         if reason and key not in seen_reason:
             emit(

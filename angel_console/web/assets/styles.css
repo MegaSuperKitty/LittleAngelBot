@@ -512,13 +512,24 @@ body::before {
 }
 
 .msg.thinking {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
   justify-self: start;
-  max-width: min(86%, 860px);
-  border-color: rgba(255, 215, 126, 0.42);
-  border-style: solid;
-  background: linear-gradient(160deg, rgba(38, 33, 19, 0.92), rgba(22, 19, 12, 0.94));
-  color: #ffe7bf;
-  box-shadow: inset 0 0 0 1px rgba(255, 215, 126, 0.14);
+  background: linear-gradient(145deg, rgba(60, 43, 10, 0.9), rgba(38, 26, 8, 0.96));
+  border-color: rgba(240, 191, 79, 0.42);
+  color: #f0dfb6;
+  box-shadow: inset 0 0 0 1px rgba(240, 191, 79, 0.12);
+}
+
+.thinking-label {
+  font-weight: 700;
+  color: #ffe5a6;
+}
+
+.thinking-content {
+  min-width: 0;
+  flex: 1 1 auto;
 }
 
 .msg.markdown {
@@ -1111,11 +1122,81 @@ body::before {
   gap: 10px;
 }
 
+.model-runtime-summary {
+  display: grid;
+  gap: 10px;
+  white-space: normal;
+}
+
+.model-runtime-current {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px dashed rgba(103, 255, 218, 0.18);
+}
+
+.model-runtime-current-label {
+  font-size: 11px;
+  color: #7db5a7;
+}
+
+.model-runtime-current-value {
+  font-size: 18px;
+  line-height: 1.3;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.model-facts {
+  display: grid;
+  gap: 8px;
+}
+
+.model-facts.compact {
+  gap: 7px;
+}
+
+.model-fact {
+  display: grid;
+  grid-template-columns: minmax(72px, 96px) minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+}
+
+.model-facts.compact .model-fact {
+  grid-template-columns: minmax(72px, 88px) minmax(0, 1fr);
+  gap: 7px;
+}
+
+.model-fact-label {
+  font-size: 11px;
+  line-height: 1.4;
+  color: #7db5a7;
+}
+
+.model-fact-value {
+  min-width: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-soft);
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.model-fact-value.mono {
+  font-family: Consolas, "SFMono-Regular", Menlo, monospace;
+  font-size: 11px;
+}
+
 .profiles-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
   gap: 10px;
   padding: 10px;
+  align-items: start;
 }
 
 .profile-card {
@@ -1125,6 +1206,7 @@ body::before {
   padding: 10px;
   display: grid;
   gap: 8px;
+  min-width: 0;
   cursor: pointer;
   transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
 }
@@ -1136,24 +1218,39 @@ body::before {
 
 .profile-head {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 8px;
+  flex-wrap: wrap;
+}
+
+.profile-title-group {
   min-width: 0;
+  flex: 1 1 180px;
+  display: grid;
+  gap: 4px;
 }
 
 .profile-name {
   margin: 0;
   font-size: 16px;
   font-weight: 700;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  flex: 1 1 auto;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.profile-role {
+  font-size: 12px;
+  color: #9dc6ba;
+}
+
+.profile-role.active {
+  color: var(--accent);
 }
 
 .profile-status {
+  display: inline-flex;
+  align-items: center;
   font-size: 11px;
   border-radius: 999px;
   padding: 2px 8px;
@@ -1163,21 +1260,7 @@ body::before {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  flex: 0 1 180px;
-  min-width: 0;
-}
-
-.profile-status.active {
-  border-color: var(--accent);
-  color: var(--accent);
-}
-
-.profile-meta {
-  font-size: 12px;
-  color: var(--text-soft);
-  line-height: 1.4;
-  overflow-wrap: anywhere;
-  word-break: break-word;
+  flex: 0 1 auto;
 }
 
 .profile-status.test-success {
@@ -1195,11 +1278,13 @@ body::before {
   align-items: center;
   gap: 8px;
   margin-top: 6px;
+  flex-wrap: wrap;
 }
 
 .profile-actions .btn-ghost,
 .profile-actions .btn-primary {
-  min-width: 88px;
+  flex: 1 1 132px;
+  min-width: 0;
   font-size: 12px;
   padding: 6px 10px;
 }
@@ -1544,6 +1629,12 @@ body::before {
 
   .billing-summary-grid {
     grid-template-columns: 1fr;
+  }
+
+  .model-fact,
+  .model-facts.compact .model-fact {
+    grid-template-columns: 1fr;
+    gap: 2px;
   }
 
   .msg {

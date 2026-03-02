@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 """ReAct agent implementation with context-direct writes and 4 hooks."""
 
 from dataclasses import dataclass, field
@@ -102,14 +102,15 @@ class ReActAgent:
 
             messages = self.context_manager.get_messages()
             llm_messages = [{"role": "system", "content": runtime_system_prompt}] + messages
-            message = get_response(llm_messages, tools=tool_specs, stream=False)
-            tool_calls = getattr(message, "tool_calls", None) or []
-            llm_message = self._assistant_message_with_tool_calls(message)
-            if not llm_message.get("tool_calls"):
-                llm_message.pop("tool_calls", None)
+            message = self._assistant_message_with_tool_calls(
+                get_response(llm_messages, tools=tool_specs, stream=False)
+            )
+            tool_calls = self._get_message_tool_calls(message)
+            if not tool_calls:
+                message.pop("tool_calls", None)
 
             # Always append LLM message before after_llm hook.
-            self.context_manager.append_message(llm_message)
+            self.context_manager.append_message(message)
 
             # Hook 2: after_llm
             if self._has_hook("after_llm"):
@@ -119,7 +120,7 @@ class ReActAgent:
                     ReActHookEvent(
                         step=step_count,
                         phase="after_llm",
-                        message=messages[-1] if messages else llm_message,
+                        message=self._get_last_assistant_message(messages) or message,
                         messages=messages,
                         system_prompt=runtime_system_prompt,
                         messages_count=len(messages),
@@ -135,8 +136,10 @@ class ReActAgent:
                 self.context_manager.set_messages(messages)
 
             messages = self.context_manager.get_messages()
+            message = self._get_last_assistant_message(messages) or {}
+            tool_calls = self._get_message_tool_calls(message)
             if not tool_calls:
-                final_text = str((messages[-1].get("content") if messages else (message.content or "")) or "").strip()
+                final_text = str(message.get("content") or "").strip()
                 return final_text, []
 
             for call in tool_calls:
@@ -150,15 +153,15 @@ class ReActAgent:
                         ReActHookEvent(
                             step=step_count,
                             phase="before_tool",
-                            tool_name=call.function.name,
+                            tool_name=self._get_tool_call_name(call),
                             message=current_messages[-1] if current_messages else None,
                             messages=current_messages,
                             system_prompt=runtime_system_prompt,
                             messages_count=len(current_messages),
                             timestamp=time.time(),
                             extra={
-                                "tool_call_id": call.id,
-                                "arguments": call.function.arguments,
+                                "tool_call_id": self._get_tool_call_id(call),
+                                "arguments": self._get_tool_call_arguments(call),
                             },
                         ),
                         current_messages,
@@ -176,12 +179,12 @@ class ReActAgent:
             for call, tool_result in zip(tool_calls, tool_results):
                 if cancel_checker and cancel_checker():
                     return "", []
-                tool_name = call.function.name
+                tool_name = self._get_tool_call_name(call)
                 tool_call_count += 1
                 tool_events.append(self._summarize_tool_event(tool_name, tool_result))
                 tool_msg = {
                     "role": "tool",
-                    "tool_call_id": call.id,
+                    "tool_call_id": self._get_tool_call_id(call),
                     "name": tool_name,
                     "content": tool_result,
                 }
@@ -202,7 +205,7 @@ class ReActAgent:
                             messages_count=len(current_messages),
                             timestamp=time.time(),
                             extra={
-                                "tool_call_id": call.id,
+                                "tool_call_id": self._get_tool_call_id(call),
                                 "result_preview": str(tool_result)[:200],
                                 "error": str(tool_result).lower().startswith("tool error"),
                             },
@@ -298,12 +301,48 @@ class ReActAgent:
         return {
             "role": "assistant",
             "content": message.content or "",
+            "reasoning_content": getattr(message, "reasoning_content", "") or "",
             "tool_calls": tool_calls,
         }
 
+    def _get_last_assistant_message(self, messages: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+        for message in reversed(messages or []):
+            if isinstance(message, dict) and message.get("role") == "assistant":
+                return message
+        return None
+
+    def _get_message_tool_calls(self, message: Optional[Dict[str, Any]]) -> List[Any]:
+        if not isinstance(message, dict):
+            return []
+        tool_calls = message.get("tool_calls")
+        return tool_calls if isinstance(tool_calls, list) else []
+
+    def _get_tool_call_id(self, call: Any) -> str:
+        if isinstance(call, dict):
+            return str(call.get("id") or "")
+        return str(getattr(call, "id", "") or "")
+
+    def _get_tool_call_name(self, call: Any) -> str:
+        if isinstance(call, dict):
+            function = call.get("function") or {}
+            if isinstance(function, dict):
+                return str(function.get("name") or "")
+            return ""
+        function = getattr(call, "function", None)
+        return str(getattr(function, "name", "") or "")
+
+    def _get_tool_call_arguments(self, call: Any) -> str:
+        if isinstance(call, dict):
+            function = call.get("function") or {}
+            if isinstance(function, dict):
+                return str(function.get("arguments") or "")
+            return ""
+        function = getattr(call, "function", None)
+        return str(getattr(function, "arguments", "") or "")
+
     def _run_tool_call(self, call, tool_map: Dict[str, object]) -> str:
-        name = call.function.name
-        arguments = call.function.arguments
+        name = self._get_tool_call_name(call)
+        arguments = self._get_tool_call_arguments(call)
         tool = tool_map.get(name)
         if not tool:
             return f"Tool not found: {name}"
