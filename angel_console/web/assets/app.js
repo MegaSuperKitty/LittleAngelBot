@@ -408,12 +408,18 @@
       mcp_field_description: "\u63cf\u8ff0",
       mcp_field_mode: "\u6a21\u5f0f",
       mcp_field_local_server: "\u672c\u5730\u670d\u52a1",
+      mcp_field_local_command: "\u672c\u5730\u547d\u4ee4",
+      mcp_field_local_args: "\u547d\u4ee4\u53c2\u6570",
+      mcp_field_local_cwd: "\u5de5\u4f5c\u76ee\u5f55",
       mcp_field_remote_provider: "\u8fdc\u7a0b\u63d0\u4f9b\u65b9",
       mcp_field_endpoint: "\u63a5\u53e3\u5730\u5740",
       mcp_field_secret_refs: "\u5bc6\u94a5\u5f15\u7528",
       mcp_client_id_placeholder: "client_id",
       mcp_client_name_placeholder: "\u5c55\u793a\u540d\u79f0",
       mcp_client_description_placeholder: "\u53ef\u9009\u63cf\u8ff0",
+      mcp_local_command_placeholder: "python",
+      mcp_local_args_placeholder: "-m\\nexample_mcp_server",
+      mcp_local_cwd_placeholder: "\u53ef\u9009\uff0c\u9ed8\u8ba4\u4e3a\u5f53\u524d\u5de5\u4f5c\u76ee\u5f55",
       mcp_endpoint_placeholder: "https://open.bigmodel.cn/api/mcp-broker/proxy/web-search/mcp",
       mcp_secret_refs_placeholder: "api_key:ZHIPU_API_KEY",
       mcp_mode_local: "\u672c\u5730",
@@ -423,7 +429,7 @@
       mcp_required_secret_refs: "\u9700\u8981\u7684 secret \u5f15\u7528",
       mcp_remote_secret_help: "\u8fdc\u7a0b client \u901a\u5e38\u9700\u8981 secret \u5f15\u7528\uff0c\u4f8b\u5982 api_key:ZHIPU_API_KEY\u3002",
       mcp_error_client_id_required: "client_id \u4e0d\u80fd\u4e3a\u7a7a",
-      mcp_error_server_id_required: "\u672c\u5730 client \u5fc5\u987b\u9009\u62e9 server_id",
+      mcp_error_server_id_required: "\u672c\u5730 client \u9700\u8981\u9009\u62e9 server_id \u6216\u586b\u5199\u672c\u5730\u547d\u4ee4",
       mcp_error_endpoint_required: "\u8fdc\u7a0b client \u5fc5\u987b\u586b\u5199 endpoint",
       mcp_summary_discovered: "\u53d1\u73b0\u7684\u672c\u5730 server",
       mcp_summary_configured: "\u5df2\u914d\u7f6e\u5ba2\u6237\u7aef",
@@ -483,12 +489,18 @@
       mcp_field_description: "Description",
       mcp_field_mode: "Mode",
       mcp_field_local_server: "Local Server",
+      mcp_field_local_command: "Local Command",
+      mcp_field_local_args: "Command Args",
+      mcp_field_local_cwd: "Working Directory",
       mcp_field_remote_provider: "Remote Provider",
       mcp_field_endpoint: "Endpoint",
       mcp_field_secret_refs: "Secret Refs",
       mcp_client_id_placeholder: "client_id",
       mcp_client_name_placeholder: "display name",
       mcp_client_description_placeholder: "optional description",
+      mcp_local_command_placeholder: "python",
+      mcp_local_args_placeholder: "-m\\nexample_mcp_server",
+      mcp_local_cwd_placeholder: "optional cwd path",
       mcp_endpoint_placeholder: "https://open.bigmodel.cn/api/mcp-broker/proxy/web-search/mcp",
       mcp_secret_refs_placeholder: "api_key:ZHIPU_API_KEY",
       mcp_mode_local: "Local",
@@ -498,7 +510,7 @@
       mcp_required_secret_refs: "Required secret refs",
       mcp_remote_secret_help: "Remote clients usually require secret refs such as api_key:ZHIPU_API_KEY.",
       mcp_error_client_id_required: "client_id is required",
-      mcp_error_server_id_required: "server_id is required for local clients",
+      mcp_error_server_id_required: "server_id or local command is required for local clients",
       mcp_error_endpoint_required: "endpoint is required for remote clients",
       mcp_summary_discovered: "Discovered local servers",
       mcp_summary_configured: "Configured clients",
@@ -683,6 +695,12 @@
     mcpClientModeSelect: document.getElementById("mcpClientModeSelect"),
     mcpClientServerField: document.getElementById("mcpClientServerField"),
     mcpClientServerSelect: document.getElementById("mcpClientServerSelect"),
+    mcpClientCommandField: document.getElementById("mcpClientCommandField"),
+    mcpClientCommandInput: document.getElementById("mcpClientCommandInput"),
+    mcpClientArgsField: document.getElementById("mcpClientArgsField"),
+    mcpClientArgsInput: document.getElementById("mcpClientArgsInput"),
+    mcpClientCwdField: document.getElementById("mcpClientCwdField"),
+    mcpClientCwdInput: document.getElementById("mcpClientCwdInput"),
     mcpClientEndpointField: document.getElementById("mcpClientEndpointField"),
     mcpClientEndpointInput: document.getElementById("mcpClientEndpointInput"),
     mcpSecretSlots: document.getElementById("mcpSecretSlots"),
@@ -2043,6 +2061,23 @@
       }));
   }
 
+  function serializeMcpArgs(args) {
+    return (Array.isArray(args) ? args : [])
+      .map((item) => String(item || "").trim())
+      .filter(Boolean)
+      .join("\n");
+  }
+
+  function parseMcpArgs(text) {
+    const rows = [];
+    String(text || "")
+      .split(/\r?\n/)
+      .map((item) => item.trim())
+      .filter(Boolean)
+      .forEach((item) => rows.push(item));
+    return rows;
+  }
+
   function renderMcpSecretSlots(secretSlots = []) {
     if (!refs.mcpSecretSlots) return;
     refs.mcpSecretSlots.innerHTML = "";
@@ -2119,8 +2154,10 @@
       const currentServerId = String(server?.server_id || "").trim();
       if (
         state.mcpEditor.client &&
-        originalServerId &&
-        originalServerId === currentServerId &&
+        (
+          (originalServerId && originalServerId === currentServerId) ||
+          (!originalServerId && String(state.mcpEditor.client.command || "").trim())
+        ) &&
         Array.isArray(state.mcpEditor.client.available_tools) &&
         state.mcpEditor.client.available_tools.length
       ) {
@@ -2140,8 +2177,10 @@
       const currentServerId = String(server?.server_id || "").trim();
       if (
         state.mcpEditor.client &&
-        originalServerId &&
-        originalServerId === currentServerId &&
+        (
+          (originalServerId && originalServerId === currentServerId) ||
+          (!originalServerId && String(state.mcpEditor.client.command || "").trim())
+        ) &&
         Array.isArray(state.mcpEditor.client.secret_slots) &&
         state.mcpEditor.client.secret_slots.length
       ) {
@@ -2173,8 +2212,14 @@
     }
 
     setMcpFieldVisible(refs.mcpClientServerField, localMode);
+    setMcpFieldVisible(refs.mcpClientCommandField, localMode);
+    setMcpFieldVisible(refs.mcpClientArgsField, localMode);
+    setMcpFieldVisible(refs.mcpClientCwdField, localMode);
     setMcpFieldVisible(refs.mcpClientEndpointField, !localMode);
     if (refs.mcpClientServerSelect) refs.mcpClientServerSelect.disabled = !localMode;
+    if (refs.mcpClientCommandInput) refs.mcpClientCommandInput.disabled = !localMode;
+    if (refs.mcpClientArgsInput) refs.mcpClientArgsInput.disabled = !localMode;
+    if (refs.mcpClientCwdInput) refs.mcpClientCwdInput.disabled = !localMode;
     if (refs.mcpClientEndpointInput) refs.mcpClientEndpointInput.disabled = localMode;
 
     if (localMode) {
@@ -2186,9 +2231,10 @@
     const secretSlots = currentMcpEditorSecrets();
     renderMcpSecretSlots(secretSlots);
     renderMcpToolSelector(currentMcpEditorTools());
+    const hasLocalCommand = Boolean(String(refs.mcpClientCommandInput?.value || "").trim());
 
     if (refs.mcpSecretHelp) {
-      if (localMode && !server) {
+      if (localMode && !server && !hasLocalCommand) {
         refs.mcpSecretHelp.textContent = t("mcp_no_server_selected");
       } else if (!secretSlots.length) {
         refs.mcpSecretHelp.textContent = t("mcp_no_secret_needed");
@@ -2235,6 +2281,9 @@
     if (refs.mcpClientEnabledInput) refs.mcpClientEnabledInput.checked = client ? Boolean(client.enabled) : true;
     if (refs.mcpClientModeSelect) refs.mcpClientModeSelect.value = remoteMode ? "remote" : "local";
     if (refs.mcpClientServerSelect && server) refs.mcpClientServerSelect.value = server.server_id || "";
+    if (refs.mcpClientCommandInput) refs.mcpClientCommandInput.value = client?.command || "";
+    if (refs.mcpClientArgsInput) refs.mcpClientArgsInput.value = serializeMcpArgs(client?.args || []);
+    if (refs.mcpClientCwdInput) refs.mcpClientCwdInput.value = client?.cwd || "";
     if (refs.mcpClientEndpointInput) {
       refs.mcpClientEndpointInput.value = client?.endpoint || (remoteMode ? defaultRemoteEndpoint() : "");
     }
@@ -2262,6 +2311,9 @@
       transport: mode === "remote" ? "streamable_http" : "stdio",
       server_id: "",
       endpoint: "",
+      command: "",
+      args: [],
+      cwd: "",
       enabled_tools: readSelectedMcpTools(toolRows),
       env: {},
       headers: {},
@@ -2273,8 +2325,14 @@
     }
     if (mode === "local") {
       payload.server_id = String(refs.mcpClientServerSelect?.value || "").trim();
-      if (!payload.server_id) {
+      payload.command = String(refs.mcpClientCommandInput?.value || "").trim();
+      payload.args = parseMcpArgs(refs.mcpClientArgsInput?.value || "");
+      payload.cwd = String(refs.mcpClientCwdInput?.value || "").trim();
+      if (!payload.server_id && !payload.command) {
         throw new Error(t("mcp_error_server_id_required"));
+      }
+      if (payload.command) {
+        payload.server_id = "";
       }
       return payload;
     }
@@ -2312,8 +2370,17 @@
               .filter((item) => String(item.client_id || "").trim() === String(client.client_id || "").trim())
               .map((item) => String(item.tool_name || "").trim())
               .filter(Boolean);
-        const metaLabel = client.mode === "remote" ? t("mcp_field_endpoint") : t("mcp_label_server_id");
-        const metaValue = client.mode === "remote" ? client.endpoint || "-" : client.server_id || "-";
+        const useLocalCommand = client.mode !== "remote" && !String(client.server_id || "").trim() && String(client.command || "").trim();
+        const metaLabel = client.mode === "remote"
+          ? t("mcp_field_endpoint")
+          : useLocalCommand
+            ? t("mcp_field_local_command")
+            : t("mcp_label_server_id");
+        const metaValue = client.mode === "remote"
+          ? client.endpoint || "-"
+          : useLocalCommand
+            ? `${client.command || "-"} ${(Array.isArray(client.args) ? client.args.join(" ") : "").trim()}`.trim()
+            : client.server_id || "-";
         const card = document.createElement("div");
         card.className = "mcp-card";
         card.innerHTML = `
@@ -3494,6 +3561,7 @@
     if (refs.saveMcpClientBtn) refs.saveMcpClientBtn.addEventListener("click", () => saveMcpClient().catch((err) => alert(`${t("action_failed")}: ${err}`)));
     if (refs.mcpClientModeSelect) refs.mcpClientModeSelect.addEventListener("change", () => refreshMcpEditorUi());
     if (refs.mcpClientServerSelect) refs.mcpClientServerSelect.addEventListener("change", () => refreshMcpEditorUi());
+    if (refs.mcpClientCommandInput) refs.mcpClientCommandInput.addEventListener("input", () => refreshMcpEditorUi());
     if (refs.mcpModal) {
       refs.mcpModal.addEventListener("click", (event) => {
         if (event.target === refs.mcpModal) closeMcpModal();

@@ -43,6 +43,9 @@ class MCPClientConfig:
     transport: str = "stdio"
     server_id: str = ""
     endpoint: str = ""
+    command: str = ""
+    args: List[str] = field(default_factory=list)
+    cwd: str = ""
     enabled_tools: List[str] = field(default_factory=list)
     env: Dict[str, str] = field(default_factory=dict)
     headers: Dict[str, str] = field(default_factory=dict)
@@ -61,6 +64,9 @@ class MCPClientConfig:
             transport=transport,
             server_id=(self.server_id or "").strip(),
             endpoint=(self.endpoint or "").strip(),
+            command=(self.command or "").strip(),
+            args=[str(item) for item in (self.args or []) if str(item).strip()],
+            cwd=(self.cwd or "").strip(),
             enabled_tools=_normalize_tool_names(self.enabled_tools),
             env={str(k): str(v) for k, v in (self.env or {}).items()},
             headers={str(k): str(v) for k, v in (self.headers or {}).items()},
@@ -78,6 +84,9 @@ class MCPClientConfig:
             "transport": self.transport,
             "server_id": self.server_id,
             "endpoint": self.endpoint,
+            "command": self.command,
+            "args": list(self.args),
+            "cwd": self.cwd,
             "enabled_tools": list(self.enabled_tools),
             "env": dict(self.env),
             "headers": dict(self.headers),

@@ -6,6 +6,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional
 
+from mcp.local_stdio_templates import local_stdio_template
 from mcp.discovery import (
     default_client_configs,
     delete_client_config,
@@ -33,15 +34,15 @@ class MCPRuntime:
         self.secrets_path = str(Path(secrets_path or (Path(self.project_root) / "local_mcp_secrets.yaml")).resolve())
         self.manager = MCPClientManager()
         self._snapshot = MCPRuntimeSnapshot()
-        ensure_default_client_configs(self.client_dir)
+        ensure_default_client_configs(self.client_dir, project_root=self.project_root)
 
     def sync(self, target=None) -> MCPRuntimeSnapshot:
         discovered = discover_local_servers()
-        configured = load_client_configs(self.client_dir)
+        configured = self._materialize_builtin_local_stdio(load_client_configs(self.client_dir))
         secrets = load_mcp_secrets(self.secrets_path)
         active = [config for config in configured if config.enabled]
         active_tools, bindings, available_by_client, errors = self.manager.sync_active(active, secrets, target)
-        self._cache_remote_tool_catalog(configured, available_by_client)
+        self._cache_client_tool_catalog(configured, available_by_client)
         configured_rows = self._build_configured_rows(
             configured=configured,
             discovered=discovered,
@@ -71,7 +72,7 @@ class MCPRuntime:
         rows: List[Dict[str, object]] = []
         secrets = load_mcp_secrets(self.secrets_path)
         discovered_by_id = {item.server_id: item for item in discover_local_servers()}
-        for config in load_client_configs(self.client_dir):
+        for config in self._materialize_builtin_local_stdio(load_client_configs(self.client_dir)):
             rows.append(
                 self._build_client_row(
                     config=config,
@@ -101,6 +102,7 @@ class MCPRuntime:
             raise ValueError("client_id cannot be changed after creation.")
         if existing is not None:
             normalized = self._merge_client(existing, normalized)
+        normalized = self._apply_builtin_local_stdio_template(normalized)
         self._apply_secret_updates(normalized, existing, secret_values)
         save_client_config(self.client_dir, normalized.normalized())
         if target is None:
@@ -131,7 +133,41 @@ class MCPRuntime:
         return sync_mcp_runtime(target, runtime=self)
 
     def default_rows(self) -> List[Dict[str, object]]:
-        return [config.to_dict() for config in default_client_configs()]
+        return [config.to_dict() for config in default_client_configs(project_root=self.project_root)]
+
+    def close(self) -> None:
+        self.manager.close()
+
+    def _materialize_builtin_local_stdio(self, configured: List[MCPClientConfig]) -> List[MCPClientConfig]:
+        rows: List[MCPClientConfig] = []
+        for config in configured:
+            rows.append(self._apply_builtin_local_stdio_template(config))
+        return rows
+
+    def _apply_builtin_local_stdio_template(self, config: MCPClientConfig) -> MCPClientConfig:
+        normalized = config.normalized()
+        if normalized.mode != "local":
+            return normalized
+        if not normalized.server_id:
+            inferred = self._infer_server_id_from_client(normalized.client_id)
+            if inferred:
+                normalized.server_id = inferred
+        if normalized.command or not normalized.server_id:
+            return normalized
+        template = local_stdio_template(self.project_root, normalized.server_id)
+        if not isinstance(template, dict):
+            return normalized
+        normalized.command = str(template.get("command") or "").strip()
+        normalized.args = [str(item) for item in (template.get("args") or []) if str(item).strip()]
+        normalized.cwd = str(template.get("cwd") or "").strip()
+        return normalized.normalized()
+
+    def _infer_server_id_from_client(self, client_id: str) -> str:
+        candidate = str(client_id or "").strip()
+        if not candidate:
+            return ""
+        discovered = {str(item.server_id).strip() for item in discover_local_servers()}
+        return candidate if candidate in discovered else ""
 
     def _merge_client(self, existing: MCPClientConfig, incoming: MCPClientConfig) -> MCPClientConfig:
         incoming.secret_refs = dict(existing.secret_refs)
@@ -139,6 +175,12 @@ class MCPRuntime:
             incoming.server_id = existing.server_id
         if not incoming.endpoint and existing.endpoint:
             incoming.endpoint = existing.endpoint
+        if not incoming.command and existing.command:
+            incoming.command = existing.command
+        if not incoming.args and existing.args:
+            incoming.args = list(existing.args)
+        if not incoming.cwd and existing.cwd:
+            incoming.cwd = existing.cwd
         if not incoming.headers and existing.headers:
             incoming.headers = dict(existing.headers)
         if not incoming.env and existing.env:
@@ -182,19 +224,23 @@ class MCPRuntime:
             server = discovered_by_id.get(config.server_id)
             if server and server.requires_secrets:
                 return [str(item).strip() for item in (server.required_secrets or []) if str(item).strip()]
-            return []
+            return [str(key).strip() for key in (config.secret_refs or {}).keys() if str(key).strip()]
         slots = [str(key).strip() for key in (config.secret_refs or {}).keys() if str(key).strip()]
         if slots:
             return slots
         return ["api_key"]
 
-    def _cache_remote_tool_catalog(
+    def _cache_client_tool_catalog(
         self,
         configured: List[MCPClientConfig],
         available_by_client: Mapping[str, List[Dict[str, Any]]],
     ) -> None:
         for config in configured:
-            if config.mode != "remote":
+            if config.mode == "remote":
+                pass
+            elif config.mode == "local" and config.command and not config.server_id:
+                pass
+            else:
                 continue
             catalog = [dict(item) for item in (available_by_client.get(config.client_id) or []) if isinstance(item, dict)]
             if not catalog:
@@ -281,6 +327,15 @@ class MCPRuntime:
         if available_tools:
             return [dict(item) for item in available_tools if isinstance(item, dict)]
         if config.mode == "local":
+            if config.command:
+                if config.server_id:
+                    server = discovered_by_id.get(config.server_id)
+                    if server is not None:
+                        return [{"name": str(name), "description": ""} for name in (server.tools or []) if str(name).strip()]
+                cached = config.metadata.get("cached_tools")
+                if isinstance(cached, list):
+                    return [dict(item) for item in cached if isinstance(item, dict)]
+                return []
             server = discovered_by_id.get(config.server_id)
             if server is None:
                 return []

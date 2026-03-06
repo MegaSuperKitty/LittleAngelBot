@@ -461,6 +461,18 @@
             <span data-i18n="mcp_field_local_server">Local Server</span>
             <select id="mcpClientServerSelect"></select>
           </label>
+          <label id="mcpClientCommandField" class="model-field">
+            <span data-i18n="mcp_field_local_command">Local Command</span>
+            <input id="mcpClientCommandInput" data-i18n-placeholder="mcp_local_command_placeholder" placeholder="python" />
+          </label>
+          <label id="mcpClientArgsField" class="model-field">
+            <span data-i18n="mcp_field_local_args">Command Args</span>
+            <textarea id="mcpClientArgsInput" rows="3" data-i18n-placeholder="mcp_local_args_placeholder" placeholder="-m&#10;some_module"></textarea>
+          </label>
+          <label id="mcpClientCwdField" class="model-field">
+            <span data-i18n="mcp_field_local_cwd">Working Directory</span>
+            <input id="mcpClientCwdInput" data-i18n-placeholder="mcp_local_cwd_placeholder" placeholder="optional cwd path" />
+          </label>
           <label id="mcpClientEndpointField" class="model-field">
             <span data-i18n="mcp_field_endpoint">Endpoint</span>
             <input
@@ -499,6 +511,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.7/dist/purify.min.js"></script>
-    <script src="/assets/app.js?v=20260304b"></script>
+    <script src="/assets/app.js?v=20260304c"></script>
   </body>
 </html>

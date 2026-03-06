@@ -87,6 +87,9 @@ class BotRuntime:
             transport=str(payload.get("transport") or ""),
             server_id=str(payload.get("server_id") or ""),
             endpoint=str(payload.get("endpoint") or ""),
+            command=str(payload.get("command") or "").strip(),
+            args=[str(item) for item in (payload.get("args") or [])],
+            cwd=str(payload.get("cwd") or "").strip(),
             enabled_tools=list(payload.get("enabled_tools") or []),
             env=dict(payload.get("env") or {}),
             headers=dict(payload.get("headers") or {}),
@@ -95,6 +98,10 @@ class BotRuntime:
         ).normalized()
         if not config.client_id:
             raise ValueError("client_id is required.")
+        if config.mode == "local" and not config.server_id and not config.command:
+            raise ValueError("local client requires server_id or command.")
+        if config.mode == "remote" and not config.endpoint:
+            raise ValueError("remote client requires endpoint.")
         original_client_id = str(payload.get("original_client_id") or "").strip()
         secret_values = dict(payload.get("secret_values") or {})
         with self._run_lock:

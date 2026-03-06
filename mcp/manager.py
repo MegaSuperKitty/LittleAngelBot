@@ -11,6 +11,7 @@ from mcp.mcp_server import get_server
 from mcp.remote_client import build_remote_tools
 from mcp.schema import MCPClientConfig, MCPToolBinding
 from mcp.secrets import resolve_secret_refs
+from mcp.stdio_client import build_local_stdio_tools
 
 
 @dataclass
@@ -31,6 +32,7 @@ class MCPClientManager:
         secrets: Mapping[str, str],
         target,
     ) -> Tuple[List[object], List[MCPToolBinding], Dict[str, List[Dict[str, Any]]], Dict[str, str]]:
+        self._close_clients()
         self._clients = {}
         built_tools: List[object] = []
         bindings: List[MCPToolBinding] = []
@@ -83,6 +85,15 @@ class MCPClientManager:
     ) -> Tuple[List[object], List[Dict[str, Any]]]:
         resolved = resolve_secret_refs(config.secret_refs, secrets)
         if config.mode == "local":
+            if config.command:
+                merged_env = self._merged_env(config.env, resolved, include_os=True)
+                project_root = str(getattr(target, "project_root", "") or "").strip()
+                if project_root:
+                    merged_env.setdefault("LITTLE_ANGEL_PROJECT_ROOT", project_root)
+                agent_root = str(getattr(target, "agent_root", "") or "").strip()
+                if agent_root:
+                    merged_env.setdefault("LITTLE_ANGEL_AGENT_ROOT", agent_root)
+                return build_local_stdio_tools(config, merged_env)
             self._apply_env(config.env, resolved)
             server = get_server(config.server_id)
             if server is None:
@@ -102,13 +113,7 @@ class MCPClientManager:
         return (priority, config.client_id)
 
     def _apply_env(self, env_map: Mapping[str, str], resolved: Mapping[str, str]) -> None:
-        merged: Dict[str, str] = {}
-        merged.update({str(k): str(v) for k, v in (env_map or {}).items() if str(v).strip()})
-        for key, value in (resolved or {}).items():
-            env_key = str(key or "").strip()
-            if env_key and str(value).strip():
-                merged[env_key] = str(value)
-        for key, value in merged.items():
+        for key, value in self._merged_env(env_map, resolved, include_os=False).items():
             os.environ[key] = value
 
     def _filter_tools(self, tools: List[object], enabled_tools: List[str]) -> List[object]:
@@ -123,3 +128,34 @@ class MCPClientManager:
             "description": str(getattr(tool, "description", "") or "").strip(),
             "input_schema": dict(getattr(tool, "parameters", {}) or {}),
         }
+
+    def _merged_env(self, env_map: Mapping[str, str], resolved: Mapping[str, str], include_os: bool) -> Dict[str, str]:
+        merged: Dict[str, str] = dict(os.environ) if include_os else {}
+        merged.update({str(k): str(v) for k, v in (env_map or {}).items() if str(v).strip()})
+        for key, value in (resolved or {}).items():
+            env_key = str(key or "").strip()
+            if env_key and str(value).strip():
+                merged[env_key] = str(value)
+        return merged
+
+    def _close_clients(self) -> None:
+        sessions = set()
+        for managed in self._clients.values():
+            for tool in managed.tools:
+                session = getattr(tool, "_session", None)
+                if session is None:
+                    continue
+                token = id(session)
+                if token in sessions:
+                    continue
+                sessions.add(token)
+                close_fn = getattr(session, "close", None)
+                if callable(close_fn):
+                    try:
+                        close_fn()
+                    except Exception:
+                        pass
+        self._clients = {}
+
+    def close(self) -> None:
+        self._close_clients()

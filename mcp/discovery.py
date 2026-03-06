@@ -6,6 +6,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Dict, List, Optional
 
+from mcp.local_stdio_templates import local_stdio_template
 from mcp.schema import MCPClientConfig
 from mcp.mcp_server import list_server_manifests
 from mcp.secrets import stable_secret_ref
@@ -55,34 +56,38 @@ def delete_client_config(client_dir: str, client_id: str) -> bool:
     return True
 
 
-def ensure_default_client_configs(client_dir: str) -> None:
+def ensure_default_client_configs(client_dir: str, project_root: str = "") -> None:
     root = Path(client_dir)
     root.mkdir(parents=True, exist_ok=True)
     if any(root.glob("*.yaml")):
         return
-    for config in default_client_configs():
+    for config in default_client_configs(project_root=project_root):
         save_client_config(client_dir, config)
 
 
-def default_client_configs() -> List[MCPClientConfig]:
+def default_client_configs(project_root: str = "") -> List[MCPClientConfig]:
     configs: List[MCPClientConfig] = []
     for manifest in discover_local_servers():
-        configs.append(
-            MCPClientConfig(
-                client_id=manifest.server_id,
-                name=manifest.name,
-                description=manifest.description,
-                enabled=bool(manifest.default_enabled),
-                mode="local",
-                transport=manifest.transport,
-                server_id=manifest.server_id,
-                secret_refs={
-                    secret: stable_secret_ref(manifest.server_id, secret)
-                    for secret in manifest.required_secrets
-                    if str(secret or "").strip()
-                },
-            ).normalized()
+        config = MCPClientConfig(
+            client_id=manifest.server_id,
+            name=manifest.name,
+            description=manifest.description,
+            enabled=bool(manifest.default_enabled),
+            mode="local",
+            transport=manifest.transport,
+            server_id=manifest.server_id,
+            secret_refs={
+                secret: stable_secret_ref(manifest.server_id, secret)
+                for secret in manifest.required_secrets
+                if str(secret or "").strip()
+            },
         )
+        template = local_stdio_template(project_root, manifest.server_id)
+        if isinstance(template, dict):
+            config.command = str(template.get("command") or "").strip()
+            config.args = [str(item) for item in (template.get("args") or []) if str(item).strip()]
+            config.cwd = str(template.get("cwd") or "").strip()
+        configs.append(config.normalized())
     configs.append(
         MCPClientConfig(
             client_id="zhipu_web_search",
@@ -114,6 +119,9 @@ def _parse_client_config(data: object, fallback_client_id: str = "") -> Optional
         transport=str(text_map.get("transport") or ""),
         server_id=str(text_map.get("server_id") or ""),
         endpoint=str(text_map.get("endpoint") or ""),
+        command=str(text_map.get("command") or ""),
+        args=_to_str_list(text_map.get("args")),
+        cwd=str(text_map.get("cwd") or ""),
         enabled_tools=_to_str_list(text_map.get("enabled_tools")),
         env=_to_str_dict(text_map.get("env")),
         headers=_to_str_dict(text_map.get("headers")),
