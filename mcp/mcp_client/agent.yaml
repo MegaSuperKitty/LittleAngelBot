@@ -1,0 +1,12 @@
+client_id: agent
+name: Agent Helpers
+description: Sub-agent orchestration and reasoning helpers.
+enabled: true
+mode: local
+transport: stdio
+server_id: agent
+enabled_tools: []
+env: {}
+headers: {}
+secret_refs: {}
+metadata: {}

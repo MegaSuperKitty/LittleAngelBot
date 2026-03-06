@@ -26,13 +26,17 @@ from angel_console.api.routes_channels import router as channels_router
 from angel_console.api.routes_cron import router as cron_router
 from angel_console.api.routes_files import router as files_router
 from angel_console.api.routes_heartbeat import router as heartbeat_router
+from angel_console.api.routes_mcp import router as mcp_router
 from angel_console.api.routes_models import router as models_router
 from angel_console.api.routes_search import router as search_router
 from angel_console.api.routes_sessions import router as sessions_router
 from angel_console.api.routes_speech import router as speech_router
 from angel_console.api.routes_skills import router as skills_router
 from angel_console.core.bot_runtime import BotRuntime
-from angel_console.core.channel_config import ChannelConfigManager
+from angel_console.core.channel_config_store import ChannelConfigStore
+from angel_console.core.channel_runtime import ChannelRuntimeManager
+from angel_console.core.channel_service import ChannelService
+from angel_console.core.channel_specs import default_channel_specs
 from angel_console.core.model_config import ModelConfigManager
 from angel_console.core.speech_transcriber import LocalSpeechTranscriber
 from angel_console.core.skills_catalog import SkillsCatalog
@@ -71,8 +75,6 @@ def _apply_local_secrets_to_env() -> None:
     secrets = _load_local_secrets(LOCAL_SECRETS_PATH)
     # Keep behavior aligned with CLI/QQ entries: env wins, local file is fallback.
     keys = [
-        "BRAVE_API_KEY",
-        "ZHIPU_API_KEY",
         "LLM_API_KEY",
         "LLM_BASE_URL",
         "LLM_MODEL",
@@ -159,9 +161,14 @@ async def lifespan(app: FastAPI):
     speech_cache_dir = os.getenv("STT_CACHE_DIR", "").strip() or str((PROJECT_ROOT / "agent_workspace" / ".stt_cache").resolve())
     speech_transcriber = LocalSpeechTranscriber(speech_cache_dir)
 
-    channel_manager = ChannelConfigManager(
-        data_path=str(data_dir / "channels.json"),
+    channel_store = ChannelConfigStore(data_path=str(data_dir / "channels.json"))
+    channel_runtime = ChannelRuntimeManager(log_dir=str(data_dir / "channel_logs"))
+    channel_service = ChannelService(
+        project_root=str(PROJECT_ROOT),
         secrets_path=str(LOCAL_SECRETS_PATH),
+        config_store=channel_store,
+        runtime_manager=channel_runtime,
+        specs=default_channel_specs(),
     )
 
     cron_engine = CronEngine(runtime=runtime, data_path=str(data_dir / "cron_jobs.json"))
@@ -175,7 +182,7 @@ async def lifespan(app: FastAPI):
     app.state.cron_engine = cron_engine
     app.state.heartbeat_engine = heartbeat_engine
     app.state.model_manager = model_manager
-    app.state.channel_manager = channel_manager
+    app.state.channel_service = channel_service
     app.state.skills_catalog = skills_catalog
     app.state.search_engine = search_engine
     app.state.metering_engine = metering_engine
@@ -184,6 +191,7 @@ async def lifespan(app: FastAPI):
     try:
         yield
     finally:
+        channel_service.shutdown()
         heartbeat_engine.stop()
         cron_engine.stop()
         search_engine.stop()
@@ -218,6 +226,7 @@ app.include_router(files_router)
 app.include_router(cron_router)
 app.include_router(heartbeat_router)
 app.include_router(skills_router)
+app.include_router(mcp_router)
 app.include_router(models_router)
 app.include_router(search_router)
 app.include_router(billing_router)

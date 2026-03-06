@@ -8,8 +8,8 @@
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&family=Sora:wght@600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap"
     />
-    <link rel="stylesheet" href="/assets/styles.css?v=20260224e" />
-    <link rel="stylesheet" href="/assets/brand.css?v=20260224e" />
+    <link rel="stylesheet" href="/assets/styles.css?v=20260304a" />
+    <link rel="stylesheet" href="/assets/brand.css?v=20260304a" />
   </head>
   <body>
     <div class="shell-grid" id="shellGrid">
@@ -25,6 +25,7 @@
           <button class="nav-item" data-view="cron" data-i18n="nav_cron">Cron</button>
           <button class="nav-item" data-view="heartbeat" data-i18n="nav_heartbeat">Heartbeat</button>
           <button class="nav-item" data-view="skills" data-i18n="nav_skills">Skills</button>
+          <button class="nav-item" data-view="mcp" data-i18n="nav_mcp">MCP</button>
           <button class="nav-item" data-view="models" data-i18n="nav_models">Models</button>
           <button class="nav-item" data-view="billing" data-i18n="nav_billing">Billing</button>
         </nav>
@@ -221,6 +222,46 @@
           <div id="skillsGrid" class="skills-grid"></div>
         </section>
 
+        <section id="view-mcp" class="view">
+          <header class="pane-head">
+            <div>
+              <h2 data-i18n="mcp_title">MCP Clients</h2>
+              <p data-i18n="mcp_subtitle">Discover available local servers and manage local or remote clients.</p>
+            </div>
+            <div class="head-actions">
+              <button id="newLocalMcpBtn" class="btn-primary" data-i18n="mcp_btn_new_local">New Local Client</button>
+              <button id="newRemoteMcpBtn" class="btn-ghost" data-i18n="mcp_btn_new_remote">New Remote Client</button>
+              <button id="refreshMcpBtn" class="btn-ghost" data-i18n="btn_refresh">Refresh</button>
+            </div>
+          </header>
+
+          <div class="mcp-wrap">
+            <div class="panel-block">
+              <div id="mcpSummary" class="state-box"></div>
+            </div>
+            <div class="mcp-sections">
+              <div class="panel-block">
+                <div class="pane-head compact-head">
+                  <div>
+                    <h3 data-i18n="mcp_clients_title">Configured Clients</h3>
+                    <p data-i18n="mcp_clients_subtitle">Create, edit, enable, disable, or remove MCP clients at runtime.</p>
+                  </div>
+                </div>
+                <div id="mcpClientsGrid" class="mcp-grid"></div>
+              </div>
+              <div class="panel-block">
+                <div class="pane-head compact-head">
+                  <div>
+                    <h3 data-i18n="mcp_discovered_title">Available Local Servers</h3>
+                    <p data-i18n="mcp_discovered_subtitle">Detected servers are shown here, but only enabled clients become active tools.</p>
+                  </div>
+                </div>
+                <div id="mcpDiscoveredGrid" class="mcp-grid"></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
         <section id="view-models" class="view">
           <header class="pane-head">
             <div>
@@ -386,6 +427,66 @@
       </div>
     </div>
 
+    <div id="mcpModal" class="modal-overlay hidden">
+      <div class="modal-card">
+        <header class="modal-head">
+          <h3 id="mcpModalTitle" data-i18n="mcp_modal_create">Create MCP Client</h3>
+          <button id="closeMcpModalBtn" class="btn-ghost">X</button>
+        </header>
+        <div class="form-grid mcp-form">
+          <label class="model-field">
+            <span data-i18n="mcp_field_client_id">Client ID</span>
+            <input id="mcpClientIdInput" data-i18n-placeholder="mcp_client_id_placeholder" placeholder="client_id" />
+          </label>
+          <label class="model-field">
+            <span data-i18n="mcp_field_name">Name</span>
+            <input id="mcpClientNameInput" data-i18n-placeholder="mcp_client_name_placeholder" placeholder="display name" />
+          </label>
+          <label class="model-field">
+            <span data-i18n="mcp_field_description">Description</span>
+            <input
+              id="mcpClientDescriptionInput"
+              data-i18n-placeholder="mcp_client_description_placeholder"
+              placeholder="optional description"
+            />
+          </label>
+          <label class="model-field">
+            <span data-i18n="mcp_field_mode">Mode</span>
+            <select id="mcpClientModeSelect">
+              <option value="local" data-i18n="mcp_mode_local">Local</option>
+              <option value="remote" data-i18n="mcp_mode_remote">Remote</option>
+            </select>
+          </label>
+          <label id="mcpClientServerField" class="model-field">
+            <span data-i18n="mcp_field_local_server">Local Server</span>
+            <select id="mcpClientServerSelect"></select>
+          </label>
+          <label id="mcpClientEndpointField" class="model-field">
+            <span data-i18n="mcp_field_endpoint">Endpoint</span>
+            <input
+              id="mcpClientEndpointInput"
+              data-i18n-placeholder="mcp_endpoint_placeholder"
+              placeholder="https://open.bigmodel.cn/api/mcp-broker/proxy/web-search/mcp"
+            />
+          </label>
+          <div id="mcpSecretSlots" class="form-grid"></div>
+          <details id="mcpToolsPanel" class="panel-block">
+            <summary>Enabled Tools</summary>
+            <div id="mcpToolsList" class="mcp-tools-editor"></div>
+          </details>
+          <label class="inline-check">
+            <input type="checkbox" id="mcpClientEnabledInput" checked />
+            <span data-i18n="hb_enabled">Enabled</span>
+          </label>
+          <div id="mcpSecretHelp" class="state-box"></div>
+          <div class="row-actions">
+            <button id="saveMcpClientBtn" class="btn-primary" data-i18n="btn_save">Save</button>
+            <button id="cancelMcpModalBtn" class="btn-ghost" data-i18n="btn_cancel">Cancel</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div id="billingDetailModal" class="modal-overlay hidden">
       <div class="modal-card billing-detail-modal">
         <header class="modal-head">
@@ -398,6 +499,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.7/dist/purify.min.js"></script>
-    <script src="/assets/app.js?v=20260224e"></script>
+    <script src="/assets/app.js?v=20260304b"></script>
   </body>
 </html>

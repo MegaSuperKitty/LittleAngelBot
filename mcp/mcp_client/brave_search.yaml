@@ -1,0 +1,13 @@
+client_id: brave_search
+name: Brave Search
+description: Local Brave-backed web search tool.
+enabled: false
+mode: local
+transport: stdio
+server_id: brave_search
+enabled_tools: []
+env: {}
+headers: {}
+secret_refs:
+  BRAVE_API_KEY: mcp.brave_search.BRAVE_API_KEY
+metadata: {}

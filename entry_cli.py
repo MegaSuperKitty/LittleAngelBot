@@ -68,8 +68,6 @@ def _get_secret(name: str, fallback: str = "") -> str:
 
 
 # Optional local config values for convenience.
-BRAVE_API_KEY = _get_secret("BRAVE_API_KEY", "")
-ZHIPU_API_KEY = _get_secret("ZHIPU_API_KEY", "")
 LLM_API_KEY = _get_secret("LLM_API_KEY", "")
 LLM_BASE_URL = _get_secret("LLM_BASE_URL", "")
 LLM_MODEL = _get_secret("LLM_MODEL", "")
@@ -80,8 +78,6 @@ BOTPY_SECRET = _get_secret("BOTPY_SECRET", "")
 
 # Export local config to environment if missing there.
 for env_name, env_value in [
-    ("BRAVE_API_KEY", BRAVE_API_KEY),
-    ("ZHIPU_API_KEY", ZHIPU_API_KEY),
     ("LLM_API_KEY", LLM_API_KEY),
     ("LLM_BASE_URL", LLM_BASE_URL),
     ("LLM_MODEL", LLM_MODEL),
@@ -205,9 +201,6 @@ async def main_async() -> None:
             print(f"LLM config is incomplete: {llm_error}")
             print("Please set LLM_API_KEY (required).")
             continue
-
-        if not os.getenv("ZHIPU_API_KEY", "").strip():
-            print("ZHIPU_API_KEY not set, web search tool may be unavailable.")
 
         normalized = content.strip().lower()
 

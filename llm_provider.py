@@ -341,6 +341,17 @@ def _metering_engine():
         return None
 
 
+def _sanitize_prompt_messages(messages: Sequence[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    sanitized: List[Dict[str, Any]] = []
+    for item in messages or []:
+        if not isinstance(item, dict):
+            continue
+        clean = dict(item)
+        clean.pop("reasoning_content", None)
+        sanitized.append(clean)
+    return sanitized
+
+
 def get_response(
     prompts: Sequence[Dict[str, Any]],
     tools: Optional[Sequence[Dict[str, Any]]] = None,
@@ -356,6 +367,9 @@ def get_response(
     max_tokens: Optional[int] = None,
 ) -> LLMMessage:
     started_at = time.time()
+    prompts_list = list(prompts or [])
+    sanitized_prompts = _sanitize_prompt_messages(prompts_list)
+    tools_list = list(tools or [])
     config = resolve_llm_config(
         provider=provider,
         base_url=base_url,
@@ -390,8 +404,8 @@ def get_response(
                     "profile_id": _resolve_profile_id(),
                     "stream": bool(stream),
                     "key_word": key_word,
-                    "message_count": len(list(prompts or [])),
-                    "tool_count": len(list(tools or [])),
+                    "message_count": len(sanitized_prompts),
+                    "tool_count": len(tools_list),
                     "temperature": temperature,
                     "top_p": top_p,
                     "max_tokens": max_tokens,
@@ -402,8 +416,8 @@ def get_response(
                         "source": "estimated",
                     },
                     "request_payload": {
-                        "messages": _jsonable(list(prompts or [])),
-                        "tools": _jsonable(list(tools or [])),
+                        "messages": _jsonable(sanitized_prompts),
+                        "tools": _jsonable(tools_list),
                         "model_params": _jsonable(
                             {
                                 "temperature": temperature,
@@ -422,7 +436,7 @@ def get_response(
                         "response_id": "",
                     },
                     "input_preview": _clip_text(
-                        " ".join(str((m or {}).get("content", "")) for m in list(prompts or []) if isinstance(m, dict))
+                        " ".join(str((m or {}).get("content", "")) for m in sanitized_prompts if isinstance(m, dict))
                     ),
                     "output_preview": "",
                     "error_type": type(exc).__name__,
@@ -440,8 +454,6 @@ def get_response(
     resolved_top_p = float(top_p) if top_p is not None else _parse_float(os.getenv("LLM_TOP_P", ""), 0.1)
     resolved_model = model or config.model
     resolved_max_tokens = max_tokens if max_tokens is not None else config.max_tokens
-    prompts_list = list(prompts or [])
-    tools_list = list(tools or [])
     caller = _resolve_caller()
     profile_id = _resolve_profile_id()
     engine = _metering_engine()
@@ -463,7 +475,7 @@ def get_response(
     backend = _get_provider(config)
     try:
         message = backend.chat(
-            prompts=prompts_list,
+            prompts=sanitized_prompts,
             tools=tools_list,
             key_word=key_word,
             stream=stream,
@@ -491,7 +503,7 @@ def get_response(
                     "profile_id": profile_id,
                     "stream": bool(stream),
                     "key_word": key_word,
-                    "message_count": len(prompts_list),
+                    "message_count": len(sanitized_prompts),
                     "tool_count": len(tools_list),
                     "temperature": resolved_temperature,
                     "top_p": resolved_top_p,
@@ -503,7 +515,7 @@ def get_response(
                         "source": "estimated",
                     },
                     "request_payload": {
-                        "messages": _jsonable(prompts_list),
+                        "messages": _jsonable(sanitized_prompts),
                         "tools": _jsonable(tools_list),
                         "model_params": _jsonable(model_params),
                     },
@@ -514,7 +526,9 @@ def get_response(
                         "finish_reason": "",
                         "response_id": "",
                     },
-                    "input_preview": _clip_text(" ".join(str((m or {}).get("content", "")) for m in prompts_list if isinstance(m, dict))),
+                    "input_preview": _clip_text(
+                        " ".join(str((m or {}).get("content", "")) for m in sanitized_prompts if isinstance(m, dict))
+                    ),
                     "output_preview": "",
                     "error_type": type(exc).__name__,
                     "error_message": str(exc),
@@ -537,7 +551,7 @@ def get_response(
     )
     if usage_missing:
         estimated = estimate_usage(
-            prompts=prompts_list,
+            prompts=sanitized_prompts,
             tools=tools_list,
             model_params=model_params,
             response_content=message.content,
@@ -569,7 +583,7 @@ def get_response(
                 "profile_id": profile_id,
                 "stream": bool(stream),
                 "key_word": key_word,
-                "message_count": len(prompts_list),
+                "message_count": len(sanitized_prompts),
                 "tool_count": len(tools_list),
                 "temperature": resolved_temperature,
                 "top_p": resolved_top_p,
@@ -581,7 +595,7 @@ def get_response(
                     "source": message.usage_source or "estimated",
                 },
                 "request_payload": {
-                    "messages": _jsonable(prompts_list),
+                    "messages": _jsonable(sanitized_prompts),
                     "tools": _jsonable(tools_list),
                     "model_params": _jsonable(model_params),
                 },
@@ -592,7 +606,9 @@ def get_response(
                     "finish_reason": message.finish_reason or "",
                     "response_id": message.response_id or "",
                 },
-                "input_preview": _clip_text(" ".join(str((m or {}).get("content", "")) for m in prompts_list if isinstance(m, dict))),
+                "input_preview": _clip_text(
+                    " ".join(str((m or {}).get("content", "")) for m in sanitized_prompts if isinstance(m, dict))
+                ),
                 "output_preview": _clip_text(message.content or ""),
                 "error_type": "",
                 "error_message": "",

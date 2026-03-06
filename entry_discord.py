@@ -73,8 +73,6 @@ def _value_from_sources(channel_value: str, env_name: str) -> str:
     return secret_text
 
 
-BRAVE_API_KEY = _value_from_sources("", "BRAVE_API_KEY")
-ZHIPU_API_KEY = _value_from_sources("", "ZHIPU_API_KEY")
 LLM_API_KEY = _value_from_sources("", "LLM_API_KEY")
 LLM_BASE_URL = _value_from_sources("", "LLM_BASE_URL")
 LLM_MODEL = _value_from_sources("", "LLM_MODEL")
@@ -95,8 +93,6 @@ DISCORD_BOT_PREFIX = (
 
 
 for key, value in [
-    ("BRAVE_API_KEY", BRAVE_API_KEY),
-    ("ZHIPU_API_KEY", ZHIPU_API_KEY),
     ("LLM_API_KEY", LLM_API_KEY),
     ("LLM_BASE_URL", LLM_BASE_URL),
     ("LLM_MODEL", LLM_MODEL),

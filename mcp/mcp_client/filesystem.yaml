@@ -1,0 +1,12 @@
+client_id: filesystem
+name: Filesystem Tools
+description: Local filesystem and shell tools.
+enabled: true
+mode: local
+transport: stdio
+server_id: filesystem
+enabled_tools: []
+env: {}
+headers: {}
+secret_refs: {}
+metadata: {}

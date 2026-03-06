@@ -1,0 +1,12 @@
+client_id: research
+name: Research Tools
+description: Local fetch, compare, citation, and report helpers.
+enabled: true
+mode: local
+transport: stdio
+server_id: research
+enabled_tools: []
+env: {}
+headers: {}
+secret_refs: {}
+metadata: {}
