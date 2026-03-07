@@ -1,0 +1,162 @@
+client_id: zhipu_web_search
+name: Zhipu Web Search
+description: Remote Zhipu web search via streamable HTTP MCP.
+enabled: true
+mode: remote
+transport: streamable_http
+server_id: ''
+endpoint: https://open.bigmodel.cn/api/mcp-broker/proxy/web-search/mcp
+enabled_tools: []
+env: {}
+headers: {}
+secret_refs:
+  api_key: mcp.zhipu_web_search.api_key
+metadata:
+  cached_tools:
+  - name: webSearchSogou
+    description: "\u641C\u7D22\u7F51\u7EDC\u4FE1\u606F\uFF0C\u8FD4\u56DE\u7ED3\u679C\
+      \u5305\u62EC\u7F51\u9875\u6807\u9898\u3001\u7F51\u9875URL\u3001\u7F51\u9875\u6458\
+      \u8981\u3001\u7F51\u7AD9\u540D\u79F0\u3001\u7F51\u7AD9\u56FE\u6807\u7B49\u3002"
+    input_schema:
+      type: object
+      properties:
+        search_query:
+          type: string
+          description: "\u9700\u8981\u8FDB\u884C\u641C\u7D22\u7684\u5185\u5BB9, \u5EFA\
+            \u8BAE\u641C\u7D22 query \u4E0D\u8D85\u8FC7 70 \u4E2A\u5B57\u7B26"
+        count:
+          type: integer
+          format: int32
+          description: "\u8FD4\u56DE\u7ED3\u679C\u7684\u6761\u6570\uFF0C\u53EF\u9009\
+            \u679A\u4E3E\u503C\uFF1A10\u300120\u300130\u300140\u300150\uFF0C\u9ED8\
+            \u8BA4\u4E3A10"
+        search_domain_filter:
+          type: string
+          description: "\u7528\u4E8E\u9650\u5B9A\u641C\u7D22\u7ED3\u679C\u7684\u8303\
+            \u56F4\uFF0C\u4EC5\u8FD4\u56DE\u6307\u5B9A\u767D\u540D\u5355\u57DF\u540D\
+            \u7684\u5185\u5BB9\uFF0C\u5982: www.example.com\u3002"
+        search_recency_filter:
+          type: string
+          description: "\u641C\u7D22\u6307\u5B9A\u65F6\u95F4\u8303\u56F4\u5185\u7684\
+            \u7F51\u9875\u3002\u9ED8\u8BA4\u4E3A noLimit\u53EF\u586B\u503C\uFF1A-\
+            \ oneDay\uFF0C\u4E00\u5929\u5185- oneWeek\uFF0C\u4E00\u5468\u5185- oneMonth\uFF0C\
+            \u4E00\u4E2A\u6708\u5185- oneYear\uFF0C\u4E00\u5E74\u5185- noLimit\uFF0C\
+            \u4E0D\u9650\uFF08\u9ED8\u8BA4\uFF09"
+        content_size:
+          type: string
+          description: "\u63A7\u5236\u7F51\u9875\u6458\u8981\u7684\u5B57\u6570\uFF1B\
+            \u9ED8\u8BA4\u503C\u4E3Amedium- medium\uFF1A\u5E73\u8861\u6A21\u5F0F\uFF0C\
+            \u9002\u7528\u4E8E\u5927\u591A\u6570\u67E5\u8BE2\u3002 400-600 \u5B57\u3002\
+            - high\uFF08\u9AD8\uFF09\uFF1A\u6700\u5927\u5316\u4E0A\u4E0B\u6587\u4EE5\
+            \u63D0\u4F9B\u66F4\u5168\u9762\u7684\u56DE\u7B54\uFF0C\u4F46\u6210\u672C\
+            \u8F83\u9AD8\uFF0C2500 \u5B57\u3002"
+      required:
+      - search_query
+      additionalProperties: false
+  - name: webSearchQuark
+    description: "\u641C\u7D22\u7F51\u7EDC\u4FE1\u606F\uFF0C\u8FD4\u56DE\u7ED3\u679C\
+      \u5305\u62EC\u7F51\u9875\u6807\u9898\u3001\u7F51\u9875URL\u3001\u7F51\u9875\u6458\
+      \u8981\u3001\u7F51\u7AD9\u540D\u79F0\u3001\u7F51\u7AD9\u56FE\u6807\u7B49\u3002"
+    input_schema:
+      type: object
+      properties:
+        search_query:
+          type: string
+          description: "\u9700\u8981\u8FDB\u884C\u641C\u7D22\u7684\u5185\u5BB9, \u5EFA\
+            \u8BAE\u641C\u7D22 query \u4E0D\u8D85\u8FC7 70 \u4E2A\u5B57\u7B26"
+        search_recency_filter:
+          type: string
+          description: "\u641C\u7D22\u6307\u5B9A\u65F6\u95F4\u8303\u56F4\u5185\u7684\
+            \u7F51\u9875\u3002\u9ED8\u8BA4\u4E3A noLimit\u53EF\u586B\u503C\uFF1A-\
+            \ oneDay\uFF0C\u4E00\u5929\u5185- oneWeek\uFF0C\u4E00\u5468\u5185- oneMonth\uFF0C\
+            \u4E00\u4E2A\u6708\u5185- oneYear\uFF0C\u4E00\u5E74\u5185- noLimit\uFF0C\
+            \u4E0D\u9650\uFF08\u9ED8\u8BA4\uFF09"
+        content_size:
+          type: string
+          description: "\u63A7\u5236\u7F51\u9875\u6458\u8981\u7684\u5B57\u6570\uFF1B\
+            \u9ED8\u8BA4\u503C\u4E3Amedium- medium\uFF1A\u5E73\u8861\u6A21\u5F0F\uFF0C\
+            \u9002\u7528\u4E8E\u5927\u591A\u6570\u67E5\u8BE2\u3002 400-600 \u5B57\u3002\
+            - high\uFF08\u9AD8\uFF09\uFF1A\u6700\u5927\u5316\u4E0A\u4E0B\u6587\u4EE5\
+            \u63D0\u4F9B\u66F4\u5168\u9762\u7684\u56DE\u7B54\uFF0C\u4F46\u6210\u672C\
+            \u8F83\u9AD8\uFF0C2500 \u5B57\u3002"
+      required:
+      - search_query
+      additionalProperties: false
+  - name: webSearchPro
+    description: "\u641C\u7D22\u7F51\u7EDC\u4FE1\u606F\uFF0C\u8FD4\u56DE\u7ED3\u679C\
+      \u5305\u62EC\u7F51\u9875\u6807\u9898\u3001\u7F51\u9875URL\u3001\u7F51\u9875\u6458\
+      \u8981\u3001\u7F51\u7AD9\u540D\u79F0\u3001\u7F51\u7AD9\u56FE\u6807\u7B49\u3002"
+    input_schema:
+      type: object
+      properties:
+        search_query:
+          type: string
+          description: "\u9700\u8981\u8FDB\u884C\u641C\u7D22\u7684\u5185\u5BB9, \u5EFA\
+            \u8BAE\u641C\u7D22 query \u4E0D\u8D85\u8FC7 70 \u4E2A\u5B57\u7B26"
+        count:
+          type: integer
+          format: int32
+          description: "\u8FD4\u56DE\u7ED3\u679C\u7684\u6761\u6570\uFF0C\u53EF\u586B\
+            \u8303\u56F4\uFF1A1-50\uFF0C\u9ED8\u8BA4\u4E3A10\u3002"
+        search_domain_filter:
+          type: string
+          description: "\u7528\u4E8E\u9650\u5B9A\u641C\u7D22\u7ED3\u679C\u7684\u8303\
+            \u56F4\uFF0C\u4EC5\u8FD4\u56DE\u6307\u5B9A\u767D\u540D\u5355\u57DF\u540D\
+            \u7684\u5185\u5BB9\uFF0C\u5982: www.example.com\u3002"
+        search_recency_filter:
+          type: string
+          description: "\u641C\u7D22\u6307\u5B9A\u65F6\u95F4\u8303\u56F4\u5185\u7684\
+            \u7F51\u9875\u3002\u9ED8\u8BA4\u4E3A noLimit\u53EF\u586B\u503C\uFF1A-\
+            \ oneDay\uFF0C\u4E00\u5929\u5185- oneWeek\uFF0C\u4E00\u5468\u5185- oneMonth\uFF0C\
+            \u4E00\u4E2A\u6708\u5185- oneYear\uFF0C\u4E00\u5E74\u5185- noLimit\uFF0C\
+            \u4E0D\u9650\uFF08\u9ED8\u8BA4\uFF09"
+        content_size:
+          type: string
+          description: "\u63A7\u5236\u7F51\u9875\u6458\u8981\u7684\u5B57\u6570\uFF1B\
+            \u9ED8\u8BA4\u503C\u4E3Amedium- medium\uFF1A\u5E73\u8861\u6A21\u5F0F\uFF0C\
+            \u9002\u7528\u4E8E\u5927\u591A\u6570\u67E5\u8BE2\u3002 400-600 \u5B57\u3002\
+            - high\uFF08\u9AD8\uFF09\uFF1A\u6700\u5927\u5316\u4E0A\u4E0B\u6587\u4EE5\
+            \u63D0\u4F9B\u66F4\u5168\u9762\u7684\u56DE\u7B54\uFF0C\u4F46\u6210\u672C\
+            \u8F83\u9AD8\uFF0C2500 \u5B57\u3002"
+      required:
+      - search_query
+      additionalProperties: false
+  - name: webSearchStd
+    description: "\u641C\u7D22\u7F51\u7EDC\u4FE1\u606F\uFF0C\u8FD4\u56DE\u7ED3\u679C\
+      \u5305\u62EC\u7F51\u9875\u6807\u9898\u3001\u7F51\u9875URL\u3001\u7F51\u9875\u6458\
+      \u8981\u3001\u7F51\u7AD9\u540D\u79F0\u3001\u7F51\u7AD9\u56FE\u6807\u7B49\u3002"
+    input_schema:
+      type: object
+      properties:
+        search_query:
+          type: string
+          description: "\u9700\u8981\u8FDB\u884C\u641C\u7D22\u7684\u5185\u5BB9, \u5EFA\
+            \u8BAE\u641C\u7D22 query \u4E0D\u8D85\u8FC7 70 \u4E2A\u5B57\u7B26"
+        count:
+          type: integer
+          format: int32
+          description: "\u8FD4\u56DE\u7ED3\u679C\u7684\u6761\u6570\uFF0C\u53EF\u586B\
+            \u8303\u56F4\uFF1A1-50\uFF0C\u9ED8\u8BA4\u4E3A10\u3002"
+        search_domain_filter:
+          type: string
+          description: "\u7528\u4E8E\u9650\u5B9A\u641C\u7D22\u7ED3\u679C\u7684\u8303\
+            \u56F4\uFF0C\u4EC5\u8FD4\u56DE\u6307\u5B9A\u767D\u540D\u5355\u57DF\u540D\
+            \u7684\u5185\u5BB9\uFF0C\u5982: www.example.com\u3002"
+        search_recency_filter:
+          type: string
+          description: "\u641C\u7D22\u6307\u5B9A\u65F6\u95F4\u8303\u56F4\u5185\u7684\
+            \u7F51\u9875\u3002\u9ED8\u8BA4\u4E3A noLimit\u53EF\u586B\u503C\uFF1A-\
+            \ oneDay\uFF0C\u4E00\u5929\u5185- oneWeek\uFF0C\u4E00\u5468\u5185- oneMonth\uFF0C\
+            \u4E00\u4E2A\u6708\u5185- oneYear\uFF0C\u4E00\u5E74\u5185- noLimit\uFF0C\
+            \u4E0D\u9650\uFF08\u9ED8\u8BA4\uFF09"
+        content_size:
+          type: string
+          description: "\u63A7\u5236\u7F51\u9875\u6458\u8981\u7684\u5B57\u6570\uFF1B\
+            \u9ED8\u8BA4\u503C\u4E3Amedium- medium\uFF1A\u5E73\u8861\u6A21\u5F0F\uFF0C\
+            \u9002\u7528\u4E8E\u5927\u591A\u6570\u67E5\u8BE2\u3002 400-600 \u5B57\u3002\
+            - high\uFF08\u9AD8\uFF09\uFF1A\u6700\u5927\u5316\u4E0A\u4E0B\u6587\u4EE5\
+            \u63D0\u4F9B\u66F4\u5168\u9762\u7684\u56DE\u7B54\uFF0C\u4F46\u6210\u672C\
+            \u8F83\u9AD8\uFF0C2500 \u5B57\u3002"
+      required:
+      - search_query
+      additionalProperties: false

@@ -11,27 +11,13 @@ from ReAct import ReActAgent, ReActHooks
 from ReCAP import ReCAPAgent
 from context import LlmSummarizer, ReActContextManager
 from llm_provider import get_response
+from mcp import MCPRuntime, sync_mcp_runtime
 from session_manager import SessionManager
-from tools.alarm_tool import AlarmTool
-from tools.ask_human_tool import AskHumanManager, AskHumanTool
-from tools.bash_tool import BashTool
-from tools.cite_manager_tool import CiteManagerTool
-from tools.edit_tool import EditTool
-from tools.glob_tool import GlobTool
-from tools.grep_tool import GrepTool
-from tools.quote_extract_tool import QuoteExtractTool
-from tools.read_tool import ReadTool
-from tools.report_template_tool import ReportTemplateTool
-from tools.skill_executor_tool import SkillExecutorTool
-from tools.skill_init_tool import SkillInitTool
-from tools.skill_tool import SkillRuntime, sync_skill_runtime
-from tools.source_compare_tool import SourceCompareTool
-from tools.sub_agent_tool import SubAgentTool
-from tools.thinking_tool import ThinkingTool
-from tools.time_tool import TimeTool
-from tools.web_fetch_tool import WebFetchTool
-from tools.write_file_tool import WriteFileTool
-from tools.zhipu_web_search_tool import ZhipuWebSearchTool
+from mcp.local_tools.alarm_tool import AlarmTool
+from mcp.local_tools.ask_human_tool import AskHumanManager, AskHumanTool
+from mcp.local_tools.skill_tool import SkillRuntime
+from mcp.local_tools.sub_agent_tool import SubAgentTool
+from mcp.local_tools.thinking_tool import ThinkingTool
 
 
 class LittleAngelBot:
@@ -57,6 +43,8 @@ class LittleAngelBot:
         self.ask_human_manager = AskHumanManager()
 
         self.skill_runtime = SkillRuntime(os.path.join(self.project_root, "skills"))
+        self.skill_tool = self.skill_runtime.create_tool(register=True)
+        self.mcp_runtime = MCPRuntime(self.project_root)
         self._base_system_prompt = system_prompt or self._default_system_prompt()
         self.system_prompt = self._base_system_prompt
 
@@ -64,7 +52,7 @@ class LittleAngelBot:
         self._react_hook_error_mode = "isolate"
 
         self.tools = self._load_tools()
-        self.refresh_skills()
+        self.refresh_mcp()
 
     def handle_message(self, user_id: str, content: str) -> Optional[str]:
         """Process one user message and return assistant text."""
@@ -212,45 +200,13 @@ class LittleAngelBot:
         )
 
     def _load_tools(self):
-        config = self._load_config()
-        env_tools = os.getenv("LITTLE_ANGEL_TOOLS")
-        if env_tools is not None:
-            tool_names = [t.strip() for t in env_tools.split(",") if t.strip()]
-        else:
-            tool_names = config.get("tools", []) if config else ["bash"]
-
-        if tool_names and len(tool_names) == 1 and tool_names[0].lower() in {"none", "off", "disable"}:
-            tool_names = []
-
-        tools = []
-        for _name in tool_names:
-            _ = _name
-
-        tools.append(BashTool(self.agent_root))
-        tools.append(ReadTool(self.agent_root))
-        tools.append(WriteFileTool(self.agent_root))
-        tools.append(GlobTool(self.agent_root))
-        tools.append(GrepTool(self.agent_root))
-        tools.append(EditTool(self.agent_root))
-        tools.append(SkillExecutorTool(os.path.join(self.project_root, "skills")))
-        tools.append(SkillInitTool(os.path.join(self.project_root, "skills")))
-        tools.append(ZhipuWebSearchTool())
-        tools.append(WebFetchTool())
-        tools.append(QuoteExtractTool())
-        tools.append(SourceCompareTool())
-        tools.append(ReportTemplateTool())
-        tools.append(CiteManagerTool())
-        tools.append(TimeTool())
-        tools.append(AlarmTool(self._handle_system_message))
-        tools.append(AskHumanTool(self.ask_human_manager))
-        self.skill_tool = self.skill_runtime.create_tool(register=True)
-        tools.append(self.skill_tool)
-        tools.append(SubAgentTool(tools, self.skill_runtime))
-        tools.append(ThinkingTool())
-        return tools
+        return []
 
     def refresh_skills(self):
-        return sync_skill_runtime(self)
+        return self.refresh_mcp()
+
+    def refresh_mcp(self):
+        return sync_mcp_runtime(self)
 
     def _bind_tool_user_context(self, user_id: str, session_path: str, cancel_checker=None) -> None:
         for tool in self.tools:

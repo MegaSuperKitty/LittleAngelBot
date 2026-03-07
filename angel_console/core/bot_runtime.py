@@ -15,6 +15,7 @@ from typing import Any, Dict, List, Optional
 import uuid
 
 from little_angel_bot import LittleAngelBot
+from mcp import MCPClientConfig
 
 from .file_ingest import FileIngestStore
 from .react_trace_bridge import build_react_hooks
@@ -62,6 +63,72 @@ class BotRuntime:
         self._run_lock = threading.Lock()
         self._cancel_flags: Dict[str, threading.Event] = {}
         self._request_user: Dict[str, str] = {}
+
+    # ---- MCP management ----
+
+    def list_mcp_discovered(self) -> List[Dict[str, Any]]:
+        return self.bot.mcp_runtime.discover_rows()
+
+    def list_mcp_clients(self) -> List[Dict[str, Any]]:
+        return self.bot.mcp_runtime.configured_rows()
+
+    def sync_mcp(self) -> Dict[str, Any]:
+        with self._run_lock:
+            snapshot = self.bot.refresh_mcp()
+        return self._mcp_payload(snapshot)
+
+    def upsert_mcp_client(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        config = MCPClientConfig(
+            client_id=str(payload.get("client_id") or "").strip(),
+            name=str(payload.get("name") or "").strip(),
+            description=str(payload.get("description") or "").strip(),
+            enabled=bool(payload.get("enabled", True)),
+            mode=str(payload.get("mode") or "local"),
+            transport=str(payload.get("transport") or ""),
+            server_id=str(payload.get("server_id") or ""),
+            endpoint=str(payload.get("endpoint") or ""),
+            command=str(payload.get("command") or "").strip(),
+            args=[str(item) for item in (payload.get("args") or [])],
+            cwd=str(payload.get("cwd") or "").strip(),
+            enabled_tools=list(payload.get("enabled_tools") or []),
+            env=dict(payload.get("env") or {}),
+            headers=dict(payload.get("headers") or {}),
+            secret_refs=dict(payload.get("secret_refs") or {}),
+            metadata=dict(payload.get("metadata") or {}),
+        ).normalized()
+        if not config.client_id:
+            raise ValueError("client_id is required.")
+        if config.mode == "local" and not config.server_id and not config.command:
+            raise ValueError("local client requires server_id or command.")
+        if config.mode == "remote" and not config.endpoint:
+            raise ValueError("remote client requires endpoint.")
+        original_client_id = str(payload.get("original_client_id") or "").strip()
+        secret_values = dict(payload.get("secret_values") or {})
+        with self._run_lock:
+            snapshot = self.bot.mcp_runtime.upsert_client(
+                config,
+                target=self.bot,
+                original_client_id=original_client_id,
+                secret_values=secret_values,
+            )
+        return self._mcp_payload(snapshot)
+
+    def toggle_mcp_client(self, client_id: str, enabled: bool) -> Dict[str, Any]:
+        with self._run_lock:
+            snapshot = self.bot.mcp_runtime.toggle_client(client_id, enabled=enabled, target=self.bot)
+        return self._mcp_payload(snapshot)
+
+    def delete_mcp_client(self, client_id: str) -> Dict[str, Any]:
+        with self._run_lock:
+            snapshot = self.bot.mcp_runtime.delete_client(client_id, target=self.bot)
+        return self._mcp_payload(snapshot)
+
+    def _mcp_payload(self, snapshot) -> Dict[str, Any]:
+        return {
+            "discovered": snapshot.discovered_rows(),
+            "clients": snapshot.configured_rows(),
+            "active_tools": snapshot.tool_rows(),
+        }
 
     # ---- Session view helpers ----
 

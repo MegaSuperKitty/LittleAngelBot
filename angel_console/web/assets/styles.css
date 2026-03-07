@@ -871,6 +871,13 @@ body::before {
   color: var(--text);
 }
 
+.btn-primary:disabled,
+.btn-ghost:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+  transform: none;
+}
+
 .table-list {
   overflow: auto;
   padding: 10px;
@@ -939,6 +946,13 @@ body::before {
   gap: 10px;
 }
 
+.channel-badges {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
 .channel-status,
 .channel-tag {
   display: inline-flex;
@@ -990,6 +1004,14 @@ body::before {
   border-top: 1px dashed rgba(103, 255, 218, 0.18);
   padding-top: 7px;
   word-break: break-word;
+}
+
+.channel-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  border-top: 1px dashed rgba(103, 255, 218, 0.18);
+  padding-top: 8px;
 }
 
 .drawer-overlay {
@@ -1113,6 +1135,111 @@ body::before {
   font-size: 11px;
   color: #7db5a7;
   word-break: break-all;
+}
+
+.compact-head {
+  padding: 0 0 12px;
+}
+
+.compact-head h3 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.compact-head p {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--text-soft);
+}
+
+.mcp-wrap {
+  overflow: auto;
+  padding: 12px;
+  display: grid;
+  gap: 10px;
+}
+
+.mcp-sections {
+  display: grid;
+  gap: 10px;
+}
+
+.mcp-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+}
+
+.mcp-card {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(11, 20, 24, 0.84);
+  padding: 12px;
+  display: grid;
+  gap: 8px;
+}
+
+.mcp-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.mcp-card-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.mcp-card-body {
+  font-size: 13px;
+  color: var(--text-soft);
+  line-height: 1.45;
+}
+
+.mcp-card-meta {
+  display: grid;
+  gap: 4px;
+  font-size: 11px;
+  color: #7db5a7;
+}
+
+.mcp-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.mcp-card-actions .btn-ghost,
+.mcp-card-actions .btn-primary {
+  min-height: 34px;
+}
+
+.mcp-tools {
+  font-size: 11px;
+  color: var(--text-soft);
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.mcp-form textarea {
+  min-height: 84px;
+  resize: vertical;
+}
+
+.mcp-tools-editor {
+  display: grid;
+  gap: 8px;
+  padding-top: 8px;
+}
+
+.mcp-tools-editor .inline-check {
+  align-items: flex-start;
+}
+
+.mcp-form .state-box {
+  white-space: pre-wrap;
 }
 
 .models-wrap {

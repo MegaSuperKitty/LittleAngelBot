@@ -390,6 +390,171 @@
     },
   };
 
+  const MCP_I18N = {
+    zh: {
+      nav_mcp: "MCP",
+      mcp_title: "\u004d\u0043\u0050 \u5ba2\u6237\u7aef",
+      mcp_subtitle: "\u53d1\u73b0\u53ef\u7528\u7684\u672c\u5730\u670d\u52a1\uff0c\u5e76\u7ba1\u7406\u672c\u5730\u6216\u8fdc\u7a0b\u5ba2\u6237\u7aef\u3002",
+      mcp_btn_new_local: "\u65b0\u5efa\u672c\u5730\u5ba2\u6237\u7aef",
+      mcp_btn_new_remote: "\u65b0\u5efa\u8fdc\u7a0b\u5ba2\u6237\u7aef",
+      mcp_discovered_title: "\u53ef\u7528\u7684\u672c\u5730\u670d\u52a1",
+      mcp_discovered_subtitle: "\u8fd9\u91cc\u5c55\u793a\u68c0\u6d4b\u5230\u7684 server\uff0c\u4f46\u53ea\u6709\u5df2\u542f\u7528\u7684 client \u624d\u4f1a\u6210\u4e3a\u53ef\u7528\u5de5\u5177\u3002",
+      mcp_clients_title: "\u5df2\u914d\u7f6e\u5ba2\u6237\u7aef",
+      mcp_clients_subtitle: "\u53ef\u4ee5\u5728\u8fd0\u884c\u65f6\u521b\u5efa\u3001\u7f16\u8f91\u3001\u542f\u7528\u3001\u7981\u7528\u6216\u5220\u9664 MCP \u5ba2\u6237\u7aef\u3002",
+      mcp_modal_create: "\u521b\u5efa MCP \u5ba2\u6237\u7aef",
+      mcp_modal_edit: "\u7f16\u8f91 MCP \u5ba2\u6237\u7aef",
+      mcp_field_client_id: "\u5ba2\u6237\u7aef ID",
+      mcp_field_name: "\u540d\u79f0",
+      mcp_field_description: "\u63cf\u8ff0",
+      mcp_field_mode: "\u6a21\u5f0f",
+      mcp_field_local_server: "\u672c\u5730\u670d\u52a1",
+      mcp_field_local_command: "\u672c\u5730\u547d\u4ee4",
+      mcp_field_local_args: "\u547d\u4ee4\u53c2\u6570",
+      mcp_field_local_cwd: "\u5de5\u4f5c\u76ee\u5f55",
+      mcp_field_remote_provider: "\u8fdc\u7a0b\u63d0\u4f9b\u65b9",
+      mcp_field_endpoint: "\u63a5\u53e3\u5730\u5740",
+      mcp_field_secret_refs: "\u5bc6\u94a5\u5f15\u7528",
+      mcp_client_id_placeholder: "client_id",
+      mcp_client_name_placeholder: "\u5c55\u793a\u540d\u79f0",
+      mcp_client_description_placeholder: "\u53ef\u9009\u63cf\u8ff0",
+      mcp_local_command_placeholder: "python",
+      mcp_local_args_placeholder: "-m\\nexample_mcp_server",
+      mcp_local_cwd_placeholder: "\u53ef\u9009\uff0c\u9ed8\u8ba4\u4e3a\u5f53\u524d\u5de5\u4f5c\u76ee\u5f55",
+      mcp_endpoint_placeholder: "https://open.bigmodel.cn/api/mcp-broker/proxy/web-search/mcp",
+      mcp_secret_refs_placeholder: "api_key:ZHIPU_API_KEY",
+      mcp_mode_local: "\u672c\u5730",
+      mcp_mode_remote: "\u8fdc\u7a0b",
+      mcp_no_server_selected: "\u8bf7\u5148\u9009\u62e9\u8981\u914d\u7f6e\u7684\u672c\u5730 server\u3002",
+      mcp_no_secret_needed: "\u8fd9\u4e2a\u672c\u5730 server \u4e0d\u9700\u8981 secret\u3002",
+      mcp_required_secret_refs: "\u9700\u8981\u7684 secret \u5f15\u7528",
+      mcp_remote_secret_help: "\u8fdc\u7a0b client \u901a\u5e38\u9700\u8981 secret \u5f15\u7528\uff0c\u4f8b\u5982 api_key:ZHIPU_API_KEY\u3002",
+      mcp_error_client_id_required: "client_id \u4e0d\u80fd\u4e3a\u7a7a",
+      mcp_error_server_id_required: "\u672c\u5730 client \u9700\u8981\u9009\u62e9 server_id \u6216\u586b\u5199\u672c\u5730\u547d\u4ee4",
+      mcp_error_endpoint_required: "\u8fdc\u7a0b client \u5fc5\u987b\u586b\u5199 endpoint",
+      mcp_summary_discovered: "\u53d1\u73b0\u7684\u672c\u5730 server",
+      mcp_summary_configured: "\u5df2\u914d\u7f6e\u5ba2\u6237\u7aef",
+      mcp_summary_enabled: "\u5df2\u542f\u7528\u5ba2\u6237\u7aef",
+      mcp_summary_active_tools: "\u5f53\u524d\u542f\u7528\u5de5\u5177",
+      mcp_empty_discovered: "\u672a\u53d1\u73b0\u672c\u5730 MCP server\u3002",
+      mcp_empty_clients: "\u8fd8\u6ca1\u6709 MCP client \u914d\u7f6e\u3002",
+      mcp_status_available_unconfigured: "\u53ef\u7528\u672a\u914d\u7f6e",
+      mcp_status_configured_enabled: "\u5df2\u914d\u7f6e\u5e76\u542f\u7528",
+      mcp_status_configured_disabled: "\u5df2\u914d\u7f6e\u4f46\u672a\u542f\u7528",
+      mcp_status_enabled: "\u5df2\u542f\u7528",
+      mcp_status_disabled: "\u5df2\u7981\u7528",
+      mcp_label_server_id: "server_id",
+      mcp_label_transport: "\u4f20\u8f93",
+      mcp_label_secrets: "\u5bc6\u94a5",
+      mcp_label_tools: "\u5de5\u5177",
+      mcp_label_client_id: "client_id",
+      mcp_label_mode: "\u6a21\u5f0f",
+      mcp_label_provider: "\u63d0\u4f9b\u65b9",
+      mcp_label_active_tools: "\u5f53\u524d\u5de5\u5177",
+      mcp_secret_required: "\u5fc5\u586b",
+      mcp_secret_none: "\u65e0",
+      mcp_btn_edit_config: "\u7f16\u8f91\u914d\u7f6e",
+      mcp_btn_create_local: "\u521b\u5efa\u672c\u5730\u5ba2\u6237\u7aef",
+      mcp_btn_edit: "\u7f16\u8f91",
+      mcp_btn_enable: "\u542f\u7528",
+      mcp_btn_disable: "\u7981\u7528",
+      mcp_builtin_filesystem_name: "\u6587\u4ef6\u7cfb\u7edf\u5de5\u5177",
+      mcp_builtin_filesystem_desc: "\u672c\u5730\u6587\u4ef6\u7cfb\u7edf\u548c\u547d\u4ee4\u884c\u5de5\u5177\u3002",
+      mcp_builtin_system_name: "\u7cfb\u7edf\u5de5\u5177",
+      mcp_builtin_system_desc: "\u672c\u5730\u65f6\u95f4\u3001\u63d0\u9192\u548c\u7528\u6237\u8f93\u5165\u5de5\u5177\u3002",
+      mcp_builtin_research_name: "\u7814\u7a76\u5de5\u5177",
+      mcp_builtin_research_desc: "\u672c\u5730\u6293\u53d6\u3001\u5f15\u7528\u3001\u5bf9\u6bd4\u548c\u62a5\u544a\u8f85\u52a9\u5de5\u5177\u3002",
+      mcp_builtin_skills_name: "\u6280\u80fd\u5de5\u5177",
+      mcp_builtin_skills_desc: "\u6280\u80fd\u52a0\u8f7d\u548c\u6280\u80fd\u5305\u7ba1\u7406\u5de5\u5177\u3002",
+      mcp_builtin_agent_name: "Agent \u8f85\u52a9\u5de5\u5177",
+      mcp_builtin_agent_desc: "\u5b50\u4ee3\u7406\u7f16\u6392\u548c\u63a8\u7406\u8f85\u52a9\u5de5\u5177\u3002",
+      mcp_builtin_brave_search_name: "Brave \u641c\u7d22",
+      mcp_builtin_brave_search_desc: "\u57fa\u4e8e Brave \u7684\u672c\u5730 Web \u641c\u7d22\u5de5\u5177\u3002",
+      mcp_builtin_zhipu_web_search_name: "\u667a\u8c31 Web \u641c\u7d22",
+      mcp_builtin_zhipu_web_search_desc: "\u901a\u8fc7 streamable HTTP MCP \u8c03\u7528\u667a\u8c31 Web \u641c\u7d22\u3002",
+    },
+    en: {
+      nav_mcp: "MCP",
+      mcp_title: "MCP Clients",
+      mcp_subtitle: "Discover available local servers and manage local or remote clients.",
+      mcp_btn_new_local: "New Local Client",
+      mcp_btn_new_remote: "New Remote Client",
+      mcp_discovered_title: "Available Local Servers",
+      mcp_discovered_subtitle: "Detected servers are shown here, but only enabled clients become active tools.",
+      mcp_clients_title: "Configured Clients",
+      mcp_clients_subtitle: "Create, edit, enable, disable, or remove MCP clients at runtime.",
+      mcp_modal_create: "Create MCP Client",
+      mcp_modal_edit: "Edit MCP Client",
+      mcp_field_client_id: "Client ID",
+      mcp_field_name: "Name",
+      mcp_field_description: "Description",
+      mcp_field_mode: "Mode",
+      mcp_field_local_server: "Local Server",
+      mcp_field_local_command: "Local Command",
+      mcp_field_local_args: "Command Args",
+      mcp_field_local_cwd: "Working Directory",
+      mcp_field_remote_provider: "Remote Provider",
+      mcp_field_endpoint: "Endpoint",
+      mcp_field_secret_refs: "Secret Refs",
+      mcp_client_id_placeholder: "client_id",
+      mcp_client_name_placeholder: "display name",
+      mcp_client_description_placeholder: "optional description",
+      mcp_local_command_placeholder: "python",
+      mcp_local_args_placeholder: "-m\\nexample_mcp_server",
+      mcp_local_cwd_placeholder: "optional cwd path",
+      mcp_endpoint_placeholder: "https://open.bigmodel.cn/api/mcp-broker/proxy/web-search/mcp",
+      mcp_secret_refs_placeholder: "api_key:ZHIPU_API_KEY",
+      mcp_mode_local: "Local",
+      mcp_mode_remote: "Remote",
+      mcp_no_server_selected: "Select a local server to configure this client.",
+      mcp_no_secret_needed: "This local server does not require secrets.",
+      mcp_required_secret_refs: "Required secret refs",
+      mcp_remote_secret_help: "Remote clients usually require secret refs such as api_key:ZHIPU_API_KEY.",
+      mcp_error_client_id_required: "client_id is required",
+      mcp_error_server_id_required: "server_id or local command is required for local clients",
+      mcp_error_endpoint_required: "endpoint is required for remote clients",
+      mcp_summary_discovered: "Discovered local servers",
+      mcp_summary_configured: "Configured clients",
+      mcp_summary_enabled: "Enabled clients",
+      mcp_summary_active_tools: "Active tools",
+      mcp_empty_discovered: "No local MCP servers discovered.",
+      mcp_empty_clients: "No MCP clients configured.",
+      mcp_status_available_unconfigured: "available_unconfigured",
+      mcp_status_configured_enabled: "configured_enabled",
+      mcp_status_configured_disabled: "configured_disabled",
+      mcp_status_enabled: "enabled",
+      mcp_status_disabled: "disabled",
+      mcp_label_server_id: "server_id",
+      mcp_label_transport: "transport",
+      mcp_label_secrets: "secrets",
+      mcp_label_tools: "tools",
+      mcp_label_client_id: "client_id",
+      mcp_label_mode: "mode",
+      mcp_label_provider: "provider",
+      mcp_label_active_tools: "active tools",
+      mcp_secret_required: "required",
+      mcp_secret_none: "none",
+      mcp_btn_edit_config: "Edit Config",
+      mcp_btn_create_local: "Create Local Client",
+      mcp_btn_edit: "Edit",
+      mcp_btn_enable: "Enable",
+      mcp_btn_disable: "Disable",
+      mcp_builtin_filesystem_name: "Filesystem Tools",
+      mcp_builtin_filesystem_desc: "Local filesystem and shell tools.",
+      mcp_builtin_system_name: "System Tools",
+      mcp_builtin_system_desc: "Local time, reminders, and user input tools.",
+      mcp_builtin_research_name: "Research Tools",
+      mcp_builtin_research_desc: "Local fetch, compare, citation, and report helpers.",
+      mcp_builtin_skills_name: "Skills Tools",
+      mcp_builtin_skills_desc: "Skill loading and skill package management.",
+      mcp_builtin_agent_name: "Agent Helpers",
+      mcp_builtin_agent_desc: "Sub-agent orchestration and reasoning helpers.",
+      mcp_builtin_brave_search_name: "Brave Search",
+      mcp_builtin_brave_search_desc: "Local Brave-backed web search tool.",
+      mcp_builtin_zhipu_web_search_name: "Zhipu Web Search",
+      mcp_builtin_zhipu_web_search_desc: "Remote Zhipu web search via streamable HTTP MCP.",
+    },
+  };
+
   const EVENT_LABEL_KEYS = {
     connected: "event_connected",
     run_started: "event_run_started",
@@ -420,6 +585,10 @@
     channels: [],
     channelEditor: null,
     skills: [],
+    mcpDiscovered: [],
+    mcpClients: [],
+    mcpActiveTools: [],
+    mcpEditor: null,
     modelState: null,
     modelProfileId: "",
     currentRequestId: "",
@@ -462,6 +631,7 @@
       cron: document.getElementById("view-cron"),
       heartbeat: document.getElementById("view-heartbeat"),
       skills: document.getElementById("view-skills"),
+      mcp: document.getElementById("view-mcp"),
       models: document.getElementById("view-models"),
       billing: document.getElementById("view-billing"),
     },
@@ -509,6 +679,36 @@
     heartbeatState: document.getElementById("heartbeatState"),
     reloadSkillsBtn: document.getElementById("reloadSkillsBtn"),
     skillsGrid: document.getElementById("skillsGrid"),
+    newLocalMcpBtn: document.getElementById("newLocalMcpBtn"),
+    newRemoteMcpBtn: document.getElementById("newRemoteMcpBtn"),
+    refreshMcpBtn: document.getElementById("refreshMcpBtn"),
+    mcpSummary: document.getElementById("mcpSummary"),
+    mcpDiscoveredGrid: document.getElementById("mcpDiscoveredGrid"),
+    mcpClientsGrid: document.getElementById("mcpClientsGrid"),
+    mcpModal: document.getElementById("mcpModal"),
+    mcpModalTitle: document.getElementById("mcpModalTitle"),
+    closeMcpModalBtn: document.getElementById("closeMcpModalBtn"),
+    mcpClientIdInput: document.getElementById("mcpClientIdInput"),
+    mcpClientNameInput: document.getElementById("mcpClientNameInput"),
+    mcpClientDescriptionInput: document.getElementById("mcpClientDescriptionInput"),
+    mcpClientEnabledInput: document.getElementById("mcpClientEnabledInput"),
+    mcpClientModeSelect: document.getElementById("mcpClientModeSelect"),
+    mcpClientServerField: document.getElementById("mcpClientServerField"),
+    mcpClientServerSelect: document.getElementById("mcpClientServerSelect"),
+    mcpClientCommandField: document.getElementById("mcpClientCommandField"),
+    mcpClientCommandInput: document.getElementById("mcpClientCommandInput"),
+    mcpClientArgsField: document.getElementById("mcpClientArgsField"),
+    mcpClientArgsInput: document.getElementById("mcpClientArgsInput"),
+    mcpClientCwdField: document.getElementById("mcpClientCwdField"),
+    mcpClientCwdInput: document.getElementById("mcpClientCwdInput"),
+    mcpClientEndpointField: document.getElementById("mcpClientEndpointField"),
+    mcpClientEndpointInput: document.getElementById("mcpClientEndpointInput"),
+    mcpSecretSlots: document.getElementById("mcpSecretSlots"),
+    mcpToolsPanel: document.getElementById("mcpToolsPanel"),
+    mcpToolsList: document.getElementById("mcpToolsList"),
+    mcpSecretHelp: document.getElementById("mcpSecretHelp"),
+    saveMcpClientBtn: document.getElementById("saveMcpClientBtn"),
+    cancelMcpModalBtn: document.getElementById("cancelMcpModalBtn"),
     newModelBtn: document.getElementById("newModelBtn"),
     reloadModelsBtn: document.getElementById("reloadModelsBtn"),
     modelModal: document.getElementById("modelModal"),
@@ -559,7 +759,7 @@
     billingDetailPre: document.getElementById("billingDetailPre"),
   };
 
-  const t = (key) => I18N[state.lang]?.[key] || I18N.en?.[key] || key;
+  const t = (key) => I18N[state.lang]?.[key] || MCP_I18N[state.lang]?.[key] || I18N.en?.[key] || MCP_I18N.en?.[key] || key;
   const zhen = (zh, en) => (state.lang === "zh" ? zh : en);
   const providerDisplayName = (provider, fallback = "") => {
     const map = {
@@ -601,6 +801,22 @@
     const labels = (Array.isArray(keys) ? keys : []).map((k) => channelFieldLabel(k));
     if (!labels.length) return "";
     return zhen(`缺少必填项：${labels.join("、")}`, `Missing required: ${labels.join(", ")}`);
+  };
+  const mcpBuiltinKey = (row) => {
+    const key = String(row?.server_id || row?.client_id || "").trim();
+    if (key) return key;
+    return "";
+  };
+  const mcpDisplayName = (row) => {
+    return String(row?.name || row?.client_id || row?.server_id || "server").trim() || "server";
+  };
+  const mcpDisplayDescription = (row) => {
+    return String(row?.description || "").trim() || "-";
+  };
+  const mcpStatusText = (statusKey) => {
+    const key = `mcp_status_${String(statusKey || "").trim()}`;
+    const translated = t(key);
+    return translated !== key ? translated : String(statusKey || "");
   };
   const esc = (text) =>
     String(text || "")
@@ -745,6 +961,10 @@
       await loadSkills();
       return;
     }
+    if (name === "mcp") {
+      await loadMcp();
+      return;
+    }
     if (name === "models") {
       await loadModels();
       return;
@@ -775,12 +995,19 @@
     renderChannels();
     renderSearchStatus();
     renderSearchResults();
+    renderMcp();
     renderBillingStatus();
     renderBillingOverview();
     renderBillingCalls();
     updateVoiceUi();
     if (state.channelEditor && state.channelEditor.name) {
       openChannelDrawer(state.channelEditor.name);
+    }
+    if (state.mcpEditor) {
+      if (refs.mcpModalTitle) {
+        refs.mcpModalTitle.textContent = state.mcpEditor.editingId ? t("mcp_modal_edit") : t("mcp_modal_create");
+      }
+      refreshMcpEditorUi();
     }
   }
 
@@ -1793,6 +2020,498 @@
     renderSkills();
   }
 
+  function defaultRemoteEndpoint() {
+    return "https://open.bigmodel.cn/api/mcp-broker/proxy/web-search/mcp";
+  }
+
+  function findMcpServer(serverId) {
+    const targetId = String(serverId || "").trim();
+    return (state.mcpDiscovered || []).find((item) => String(item.server_id || "").trim() === targetId) || null;
+  }
+
+  function normalizeMcpToolRows(rows) {
+    return (Array.isArray(rows) ? rows : [])
+      .map((item) => ({
+        name: String(item?.name || "").trim(),
+        description: String(item?.description || "").trim(),
+        selected: item?.selected !== false,
+      }))
+      .filter((item) => item.name);
+  }
+
+  function buildLocalSecretSlots(server) {
+    return (Array.isArray(server?.required_secrets) ? server.required_secrets : [])
+      .map((item) => String(item || "").trim())
+      .filter(Boolean)
+      .map((slotName) => ({
+        slot_name: slotName,
+        masked_value: "",
+        has_value: false,
+      }));
+  }
+
+  function buildLocalToolRows(server) {
+    return (Array.isArray(server?.tools) ? server.tools : [])
+      .map((name) => String(name || "").trim())
+      .filter(Boolean)
+      .map((name) => ({
+        name,
+        description: "",
+        selected: true,
+      }));
+  }
+
+  function serializeMcpArgs(args) {
+    return (Array.isArray(args) ? args : [])
+      .map((item) => String(item || "").trim())
+      .filter(Boolean)
+      .join("\n");
+  }
+
+  function parseMcpArgs(text) {
+    const rows = [];
+    String(text || "")
+      .split(/\r?\n/)
+      .map((item) => item.trim())
+      .filter(Boolean)
+      .forEach((item) => rows.push(item));
+    return rows;
+  }
+
+  function renderMcpSecretSlots(secretSlots = []) {
+    if (!refs.mcpSecretSlots) return;
+    refs.mcpSecretSlots.innerHTML = "";
+    const slots = Array.isArray(secretSlots) ? secretSlots : [];
+    slots.forEach((slot) => {
+      const label = document.createElement("label");
+      label.className = "model-field";
+      const title = document.createElement("span");
+      title.textContent = String(slot.slot_name || "secret");
+      const input = document.createElement("input");
+      input.type = "password";
+      input.dataset.slotName = String(slot.slot_name || "");
+      input.placeholder = String(slot.masked_value || "").trim() || zhen("留空表示保持不变", "Leave blank to keep current value");
+      input.autocomplete = "new-password";
+      label.appendChild(title);
+      label.appendChild(input);
+      refs.mcpSecretSlots.appendChild(label);
+    });
+  }
+
+  function renderMcpToolSelector(toolRows = []) {
+    if (!refs.mcpToolsList || !refs.mcpToolsPanel) return;
+    refs.mcpToolsList.innerHTML = "";
+    const rows = normalizeMcpToolRows(toolRows);
+    const summary = refs.mcpToolsPanel.querySelector("summary");
+    if (summary) summary.textContent = zhen("启用工具", "Enabled Tools");
+    if (!rows.length) {
+      refs.mcpToolsList.textContent = zhen("当前没有可配置的工具。", "No tools are available yet.");
+      return;
+    }
+    rows.forEach((tool) => {
+      const label = document.createElement("label");
+      label.className = "inline-check";
+      const input = document.createElement("input");
+      input.type = "checkbox";
+      input.dataset.toolName = tool.name;
+      input.checked = tool.selected !== false;
+      const text = document.createElement("span");
+      text.textContent = tool.description ? `${tool.name} - ${tool.description}` : tool.name;
+      label.appendChild(input);
+      label.appendChild(text);
+      refs.mcpToolsList.appendChild(label);
+    });
+  }
+
+  function readMcpSecretValues() {
+    const rows = {};
+    if (!refs.mcpSecretSlots) return rows;
+    refs.mcpSecretSlots.querySelectorAll("input[data-slot-name]").forEach((input) => {
+      const slotName = String(input.dataset.slotName || "").trim();
+      const value = String(input.value || "").trim();
+      if (slotName && value) rows[slotName] = value;
+    });
+    return rows;
+  }
+
+  function readSelectedMcpTools(toolRows = []) {
+    const rows = normalizeMcpToolRows(toolRows);
+    if (!rows.length || !refs.mcpToolsList) return [];
+    const selected = [];
+    refs.mcpToolsList.querySelectorAll("input[data-tool-name]").forEach((input) => {
+      if (input.checked) selected.push(String(input.dataset.toolName || "").trim());
+    });
+    if (!selected.length || selected.length === rows.length) return [];
+    return selected;
+  }
+
+  function currentMcpEditorTools() {
+    if (!state.mcpEditor) return [];
+    const mode = String(refs.mcpClientModeSelect?.value || state.mcpEditor.mode || "local").trim();
+    if (mode === "local") {
+      const server = findMcpServer(refs.mcpClientServerSelect?.value || "") || state.mcpEditor.server || null;
+      const originalServerId = String(state.mcpEditor.client?.server_id || "").trim();
+      const currentServerId = String(server?.server_id || "").trim();
+      if (
+        state.mcpEditor.client &&
+        (
+          (originalServerId && originalServerId === currentServerId) ||
+          (!originalServerId && String(state.mcpEditor.client.command || "").trim())
+        ) &&
+        Array.isArray(state.mcpEditor.client.available_tools) &&
+        state.mcpEditor.client.available_tools.length
+      ) {
+        return normalizeMcpToolRows(state.mcpEditor.client.available_tools);
+      }
+      return buildLocalToolRows(server);
+    }
+    return normalizeMcpToolRows(state.mcpEditor.availableTools || []);
+  }
+
+  function currentMcpEditorSecrets() {
+    if (!state.mcpEditor) return [];
+    const mode = String(refs.mcpClientModeSelect?.value || state.mcpEditor.mode || "local").trim();
+    if (mode === "local") {
+      const server = findMcpServer(refs.mcpClientServerSelect?.value || "") || state.mcpEditor.server || null;
+      const originalServerId = String(state.mcpEditor.client?.server_id || "").trim();
+      const currentServerId = String(server?.server_id || "").trim();
+      if (
+        state.mcpEditor.client &&
+        (
+          (originalServerId && originalServerId === currentServerId) ||
+          (!originalServerId && String(state.mcpEditor.client.command || "").trim())
+        ) &&
+        Array.isArray(state.mcpEditor.client.secret_slots) &&
+        state.mcpEditor.client.secret_slots.length
+      ) {
+        return state.mcpEditor.client.secret_slots;
+      }
+      return buildLocalSecretSlots(server);
+    }
+    if (Array.isArray(state.mcpEditor.secretSlots) && state.mcpEditor.secretSlots.length) {
+      return state.mcpEditor.secretSlots;
+    }
+    return [{ slot_name: "api_key", masked_value: "", has_value: false }];
+  }
+
+  function setMcpFieldVisible(element, visible) {
+    if (!element) return;
+    element.hidden = !visible;
+    element.style.display = visible ? "" : "none";
+  }
+
+  function refreshMcpEditorUi() {
+    if (!refs.mcpModal || refs.mcpModal.classList.contains("hidden")) return;
+    const mode = String(refs.mcpClientModeSelect?.value || "local").trim();
+    const localMode = mode === "local";
+    const server = findMcpServer(refs.mcpClientServerSelect?.value || "");
+
+    if (state.mcpEditor) {
+      state.mcpEditor.mode = mode;
+      if (server) state.mcpEditor.server = server;
+    }
+
+    setMcpFieldVisible(refs.mcpClientServerField, localMode);
+    setMcpFieldVisible(refs.mcpClientCommandField, localMode);
+    setMcpFieldVisible(refs.mcpClientArgsField, localMode);
+    setMcpFieldVisible(refs.mcpClientCwdField, localMode);
+    setMcpFieldVisible(refs.mcpClientEndpointField, !localMode);
+    if (refs.mcpClientServerSelect) refs.mcpClientServerSelect.disabled = !localMode;
+    if (refs.mcpClientCommandInput) refs.mcpClientCommandInput.disabled = !localMode;
+    if (refs.mcpClientArgsInput) refs.mcpClientArgsInput.disabled = !localMode;
+    if (refs.mcpClientCwdInput) refs.mcpClientCwdInput.disabled = !localMode;
+    if (refs.mcpClientEndpointInput) refs.mcpClientEndpointInput.disabled = localMode;
+
+    if (localMode) {
+      if (refs.mcpClientEndpointInput) refs.mcpClientEndpointInput.value = "";
+    } else if (refs.mcpClientEndpointInput && !String(refs.mcpClientEndpointInput.value || "").trim()) {
+      refs.mcpClientEndpointInput.value = defaultRemoteEndpoint();
+    }
+
+    const secretSlots = currentMcpEditorSecrets();
+    renderMcpSecretSlots(secretSlots);
+    renderMcpToolSelector(currentMcpEditorTools());
+    const hasLocalCommand = Boolean(String(refs.mcpClientCommandInput?.value || "").trim());
+
+    if (refs.mcpSecretHelp) {
+      if (localMode && !server && !hasLocalCommand) {
+        refs.mcpSecretHelp.textContent = t("mcp_no_server_selected");
+      } else if (!secretSlots.length) {
+        refs.mcpSecretHelp.textContent = t("mcp_no_secret_needed");
+      } else {
+        const labels = secretSlots.map((item) => String(item.slot_name || "").trim()).filter(Boolean);
+        refs.mcpSecretHelp.textContent = `${t("mcp_required_secret_refs")}: ${labels.join(", ") || "-"}`;
+      }
+    }
+  }
+
+  function populateMcpServerOptions() {
+    if (!refs.mcpClientServerSelect) return;
+    refs.mcpClientServerSelect.innerHTML = "";
+    const rows = state.mcpDiscovered || [];
+    rows.forEach((server) => {
+      const option = document.createElement("option");
+      option.value = server.server_id || "";
+      option.textContent = mcpDisplayName(server);
+      refs.mcpClientServerSelect.appendChild(option);
+    });
+  }
+
+  function openMcpModal(options = {}) {
+    if (!refs.mcpModal) return;
+    populateMcpServerOptions();
+    const client = options && options.client ? options.client : null;
+    const serverId = String(options?.serverId || client?.server_id || "").trim();
+    const remoteMode = String(options?.mode || client?.mode || "local").trim() === "remote";
+    const server = findMcpServer(serverId) || (state.mcpDiscovered || [])[0] || null;
+
+    state.mcpEditor = {
+      editingId: client ? String(client.client_id || "").trim() : "",
+      client,
+      mode: remoteMode ? "remote" : "local",
+      server,
+      availableTools: client ? normalizeMcpToolRows(client.available_tools || []) : (remoteMode ? [] : buildLocalToolRows(server)),
+      secretSlots: client ? (Array.isArray(client.secret_slots) ? client.secret_slots : []) : (remoteMode ? [{ slot_name: "api_key", masked_value: "", has_value: false }] : buildLocalSecretSlots(server)),
+    };
+
+    if (refs.mcpModalTitle) refs.mcpModalTitle.textContent = client ? t("mcp_modal_edit") : t("mcp_modal_create");
+    if (refs.mcpClientIdInput) refs.mcpClientIdInput.value = client?.client_id || (remoteMode ? "" : server?.server_id || "");
+    if (refs.mcpClientNameInput) refs.mcpClientNameInput.value = client?.name || (remoteMode ? "" : server?.name || "");
+    if (refs.mcpClientDescriptionInput) refs.mcpClientDescriptionInput.value = client?.description || (remoteMode ? "" : server?.description || "");
+    if (refs.mcpClientEnabledInput) refs.mcpClientEnabledInput.checked = client ? Boolean(client.enabled) : true;
+    if (refs.mcpClientModeSelect) refs.mcpClientModeSelect.value = remoteMode ? "remote" : "local";
+    if (refs.mcpClientServerSelect && server) refs.mcpClientServerSelect.value = server.server_id || "";
+    if (refs.mcpClientCommandInput) refs.mcpClientCommandInput.value = client?.command || "";
+    if (refs.mcpClientArgsInput) refs.mcpClientArgsInput.value = serializeMcpArgs(client?.args || []);
+    if (refs.mcpClientCwdInput) refs.mcpClientCwdInput.value = client?.cwd || "";
+    if (refs.mcpClientEndpointInput) {
+      refs.mcpClientEndpointInput.value = client?.endpoint || (remoteMode ? defaultRemoteEndpoint() : "");
+    }
+    if (refs.mcpClientIdInput) refs.mcpClientIdInput.disabled = Boolean(client);
+    refs.mcpModal.classList.remove("hidden");
+    refreshMcpEditorUi();
+  }
+
+  function closeMcpModal() {
+    if (!refs.mcpModal) return;
+    refs.mcpModal.classList.add("hidden");
+    state.mcpEditor = null;
+  }
+
+  function readMcpPayload() {
+    const mode = String(refs.mcpClientModeSelect?.value || "local").trim();
+    const toolRows = currentMcpEditorTools();
+    const payload = {
+      client_id: String(refs.mcpClientIdInput?.value || "").trim(),
+      original_client_id: String(state.mcpEditor?.editingId || "").trim(),
+      name: String(refs.mcpClientNameInput?.value || "").trim(),
+      description: String(refs.mcpClientDescriptionInput?.value || "").trim(),
+      enabled: Boolean(refs.mcpClientEnabledInput?.checked),
+      mode,
+      transport: mode === "remote" ? "streamable_http" : "stdio",
+      server_id: "",
+      endpoint: "",
+      command: "",
+      args: [],
+      cwd: "",
+      enabled_tools: readSelectedMcpTools(toolRows),
+      env: {},
+      headers: {},
+      metadata: {},
+      secret_values: readMcpSecretValues(),
+    };
+    if (!payload.client_id) {
+      throw new Error(t("mcp_error_client_id_required"));
+    }
+    if (mode === "local") {
+      payload.server_id = String(refs.mcpClientServerSelect?.value || "").trim();
+      payload.command = String(refs.mcpClientCommandInput?.value || "").trim();
+      payload.args = parseMcpArgs(refs.mcpClientArgsInput?.value || "");
+      payload.cwd = String(refs.mcpClientCwdInput?.value || "").trim();
+      if (!payload.server_id && !payload.command) {
+        throw new Error(t("mcp_error_server_id_required"));
+      }
+      if (payload.command) {
+        payload.server_id = "";
+      }
+      return payload;
+    }
+    payload.endpoint = String(refs.mcpClientEndpointInput?.value || "").trim() || defaultRemoteEndpoint();
+    if (!payload.endpoint) {
+      throw new Error(t("mcp_error_endpoint_required"));
+    }
+    return payload;
+  }
+
+  function renderMcp() {
+    if (!refs.mcpSummary || !refs.mcpDiscoveredGrid || !refs.mcpClientsGrid) return;
+    const discovered = Array.isArray(state.mcpDiscovered) ? state.mcpDiscovered : [];
+    const clients = Array.isArray(state.mcpClients) ? state.mcpClients : [];
+    const activeTools = Array.isArray(state.mcpActiveTools) ? state.mcpActiveTools : [];
+    const enabledClients = clients.filter((item) => Boolean(item.enabled));
+    const activeToolNames = activeTools.map((item) => String(item.tool_name || "").trim()).filter(Boolean);
+
+    refs.mcpSummary.textContent =
+      `${t("mcp_summary_discovered")}: ${discovered.length}\n` +
+      `${t("mcp_summary_configured")}: ${clients.length}\n` +
+      `${t("mcp_summary_enabled")}: ${enabledClients.length}\n` +
+      `${t("mcp_summary_active_tools")}: ${activeToolNames.join(", ") || "-"}`;
+
+    refs.mcpClientsGrid.innerHTML = "";
+    if (!clients.length) {
+      refs.mcpClientsGrid.textContent = t("mcp_empty_clients");
+    } else {
+      clients.forEach((client) => {
+        const availableTools = normalizeMcpToolRows(client.available_tools || []);
+        const selectedTools = availableTools.filter((item) => item.selected !== false).map((item) => item.name);
+        const bindingNames = Array.isArray(client.active_tool_names) && client.active_tool_names.length
+          ? client.active_tool_names
+          : activeTools
+              .filter((item) => String(item.client_id || "").trim() === String(client.client_id || "").trim())
+              .map((item) => String(item.tool_name || "").trim())
+              .filter(Boolean);
+        const useLocalCommand = client.mode !== "remote" && !String(client.server_id || "").trim() && String(client.command || "").trim();
+        const metaLabel = client.mode === "remote"
+          ? t("mcp_field_endpoint")
+          : useLocalCommand
+            ? t("mcp_field_local_command")
+            : t("mcp_label_server_id");
+        const metaValue = client.mode === "remote"
+          ? client.endpoint || "-"
+          : useLocalCommand
+            ? `${client.command || "-"} ${(Array.isArray(client.args) ? client.args.join(" ") : "").trim()}`.trim()
+            : client.server_id || "-";
+        const card = document.createElement("div");
+        card.className = "mcp-card";
+        card.innerHTML = `
+          <div class="mcp-card-head">
+            <h3 class="mcp-card-title">${esc(mcpDisplayName(client))}</h3>
+            <span class="skill-tag">${esc(client.enabled ? t("mcp_status_enabled") : t("mcp_status_disabled"))}</span>
+          </div>
+          <div class="mcp-card-body">${esc(mcpDisplayDescription(client))}</div>
+          <div class="mcp-card-meta">
+            <span>${esc(t("mcp_label_client_id"))}: ${esc(client.client_id || "-")}</span>
+            <span>${esc(t("mcp_label_mode"))}: ${esc(client.mode === "remote" ? t("mcp_mode_remote") : t("mcp_mode_local"))}</span>
+            <span>${esc(metaLabel)}: ${esc(metaValue)}</span>
+          </div>
+          <div class="mcp-tools">${esc(zhen("已选工具", "Selected tools"))}: ${esc(selectedTools.join(", ") || zhen("全部", "all"))}</div>
+          <div class="mcp-tools">${esc(t("mcp_label_active_tools"))}: ${esc(bindingNames.join(", ") || "-")}</div>
+          ${client.runtime_error ? `<div class="state-box">${esc(client.runtime_error)}</div>` : ""}
+        `;
+        const actions = document.createElement("div");
+        actions.className = "mcp-card-actions";
+        actions.appendChild(
+          makeActionBtn(t("mcp_btn_edit"), async () => {
+            openMcpModal({ client });
+          })
+        );
+        actions.appendChild(
+          makeActionBtn(client.enabled ? t("mcp_btn_disable") : t("mcp_btn_enable"), async () => {
+            await toggleMcpClient(client.client_id || "", !client.enabled);
+          })
+        );
+        actions.appendChild(
+          makeActionBtn(t("btn_delete"), async () => {
+            await deleteMcpClient(client.client_id || "");
+          })
+        );
+        card.appendChild(actions);
+        refs.mcpClientsGrid.appendChild(card);
+      });
+    }
+
+    refs.mcpDiscoveredGrid.innerHTML = "";
+    if (!discovered.length) {
+      refs.mcpDiscoveredGrid.textContent = t("mcp_empty_discovered");
+      return;
+    }
+    discovered.forEach((server) => {
+      const linkedClients = clients.filter(
+        (item) => String(item.mode || "").trim() === "local" && String(item.server_id || "").trim() === String(server.server_id || "").trim()
+      );
+      const preferredClient = linkedClients.find((item) => Boolean(item.enabled)) || linkedClients[0] || null;
+      const displayRow = preferredClient || server;
+      const enabled = linkedClients.some((item) => Boolean(item.enabled));
+      const statusLabel = !linkedClients.length
+        ? "available_unconfigured"
+        : enabled
+          ? "configured_enabled"
+          : "configured_disabled";
+      const card = document.createElement("div");
+      card.className = "mcp-card";
+      card.innerHTML = `
+        <div class="mcp-card-head">
+          <h3 class="mcp-card-title">${esc(mcpDisplayName(displayRow))}</h3>
+          <span class="skill-tag">${esc(mcpStatusText(statusLabel))}</span>
+        </div>
+        <div class="mcp-card-body">${esc(mcpDisplayDescription(displayRow))}</div>
+        <div class="mcp-card-meta">
+          <span>${esc(t("mcp_label_server_id"))}: ${esc(server.server_id || "-")}</span>
+          <span>${esc(t("mcp_label_transport"))}: ${esc(server.transport || "-")}</span>
+          <span>${esc(t("mcp_label_secrets"))}: ${server.requires_secrets ? esc((server.required_secrets || []).join(", ") || t("mcp_secret_required")) : esc(t("mcp_secret_none"))}</span>
+        </div>
+        <div class="mcp-tools">${esc(t("mcp_label_tools"))}: ${esc((server.tools || []).join(", ") || "-")}</div>
+      `;
+      const actions = document.createElement("div");
+      actions.className = "mcp-card-actions";
+      actions.appendChild(
+        makeActionBtn(preferredClient ? t("mcp_btn_edit_config") : t("mcp_btn_create_local"), async () => {
+          openMcpModal(preferredClient ? { client: preferredClient } : { mode: "local", serverId: server.server_id || "" });
+        })
+      );
+      card.appendChild(actions);
+      refs.mcpDiscoveredGrid.appendChild(card);
+    });
+  }
+
+  async function loadMcp() {
+    const data = await api("/api/v1/mcp/sync", { method: "POST" });
+    state.mcpDiscovered = data.discovered || [];
+    state.mcpClients = data.clients || [];
+    state.mcpActiveTools = data.active_tools || [];
+    renderMcp();
+  }
+
+  async function saveMcpClient() {
+    const payload = readMcpPayload();
+    const data = await api("/api/v1/mcp/clients", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    state.mcpDiscovered = data.discovered || state.mcpDiscovered;
+    state.mcpClients = data.clients || state.mcpClients;
+    state.mcpActiveTools = data.active_tools || state.mcpActiveTools;
+    closeMcpModal();
+    renderMcp();
+  }
+
+  async function toggleMcpClient(clientId, enabled) {
+    const targetId = String(clientId || "").trim();
+    if (!targetId) throw new Error("client_id is required");
+    const data = await api(`/api/v1/mcp/clients/${encodeURIComponent(targetId)}/toggle`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ enabled: Boolean(enabled) }),
+    });
+    state.mcpDiscovered = data.discovered || state.mcpDiscovered;
+    state.mcpClients = data.clients || state.mcpClients;
+    state.mcpActiveTools = data.active_tools || state.mcpActiveTools;
+    renderMcp();
+  }
+
+  async function deleteMcpClient(clientId) {
+    const targetId = String(clientId || "").trim();
+    if (!targetId) throw new Error("client_id is required");
+    const data = await api(`/api/v1/mcp/clients/${encodeURIComponent(targetId)}`, {
+      method: "DELETE",
+    });
+    state.mcpDiscovered = data.discovered || state.mcpDiscovered;
+    state.mcpClients = data.clients || state.mcpClients;
+    state.mcpActiveTools = data.active_tools || state.mcpActiveTools;
+    renderMcp();
+  }
+
   function renderSearchStatus() {
     if (!refs.searchStatusBox) return;
     const status = state.searchStatus;
@@ -2518,11 +3237,228 @@
     renderModels();
   }
 
-  function makeActionBtn(label, fn) {
+  // Channel runtime v2: config state + runtime state + start/stop/restart operations.
+  function channelStatusText(row) {
+    if (!row || !row.enabled) return zhen("已禁用", "Disabled");
+    if (row.configured) return zhen("已配置", "Configured");
+    return zhen("配置不完整", "Config Incomplete");
+  }
+
+  function channelStatusClass(row) {
+    if (!row || !row.enabled) return "disabled";
+    if (row.configured) return "enabled";
+    return "error";
+  }
+
+  function channelRuntimeStatusText(row) {
+    const runtime = row?.runtime || {};
+    const status = String(runtime.status || "").trim().toLowerCase();
+    if (runtime.running) return zhen("运行中", "Running");
+    if (status === "failed") return zhen("启动失败", "Start Failed");
+    if (status === "manual") return zhen("仅手动运行", "Manual Only");
+    return zhen("未启动", "Not Running");
+  }
+
+  function channelRuntimeStatusClass(row) {
+    const runtime = row?.runtime || {};
+    const status = String(runtime.status || "").trim().toLowerCase();
+    if (runtime.running) return "enabled";
+    if (status === "failed") return "error";
+    return "disabled";
+  }
+
+  function summarizeChannel(row) {
+    if (!row) return "-";
+    const settings = {};
+    (row.fields || []).forEach((field) => {
+      settings[field.key] = field.secret ? (field.has_value ? "****" : "") : String(field.value || "");
+    });
+    if (row.name === "web") return settings.base_url || row.launch_command || "-";
+    if (row.name === "cli") return settings.command || row.launch_command || "-";
+    if (row.name === "qq") return settings.app_id ? `app_id=${settings.app_id}` : row.launch_command || "-";
+    if (row.name === "discord") {
+      if (settings.guild_id) return `guild_id=${settings.guild_id}`;
+      if (settings.http_proxy) return `proxy=${settings.http_proxy}`;
+      return row.launch_command || "-";
+    }
+    return row.launch_command || "-";
+  }
+
+  function channelConfigDetail(row) {
+    if (!row) return "";
+    if (row.enabled && !row.configured) return channelRequiredHint(row.missing_required || []);
+    if (row.bot_prefix) return `prefix=${row.bot_prefix}`;
+    return row.launch_command || "";
+  }
+
+  function channelRuntimeDetail(row) {
+    const runtime = row?.runtime || {};
+    if (runtime.running) {
+      return runtime.pid ? `pid=${runtime.pid}` : zhen("进程运行中", "Process running");
+    }
+    if (runtime.status === "failed") {
+      return String(runtime.last_error || zhen("启动失败，请查看日志", "Start failed, check logs"));
+    }
+    if (runtime.status === "manual") {
+      return zhen("该频道仅支持手动启动。", "Manual-only channel.");
+    }
+    return zhen("当前未启动。", "Channel is not running.");
+  }
+
+  function channelDrawerSummary(row) {
+    if (!row) return "";
+    const lines = [
+      `${zhen("配置状态", "Config")}: ${channelStatusText(row)}`,
+      `${zhen("运行状态", "Runtime")}: ${channelRuntimeStatusText(row)}`,
+    ];
+    const configDetail = channelConfigDetail(row);
+    if (configDetail) lines.push(configDetail);
+    const runtimeDetail = channelRuntimeDetail(row);
+    if (runtimeDetail) lines.push(runtimeDetail);
+    if (row.launch_command) lines.push(`${zhen("启动命令", "Launch")}: ${row.launch_command}`);
+    return lines.filter(Boolean).join("\n");
+  }
+
+  function applyChannelsState(response, keepDrawer = false) {
+    state.channels = (response && response.channels) || [];
+    renderChannels();
+    if (keepDrawer && state.channelEditor && state.channelEditor.name) {
+      openChannelDrawer(state.channelEditor.name);
+    }
+  }
+
+  async function startChannel(name, keepDrawer = false) {
+    const response = await api(`/api/v1/channels/${encodeURIComponent(name)}/start`, { method: "POST" });
+    applyChannelsState(response, keepDrawer);
+  }
+
+  async function stopChannel(name, keepDrawer = false) {
+    const response = await api(`/api/v1/channels/${encodeURIComponent(name)}/stop`, { method: "POST" });
+    applyChannelsState(response, keepDrawer);
+  }
+
+  async function restartChannel(name, keepDrawer = false) {
+    const response = await api(`/api/v1/channels/${encodeURIComponent(name)}/restart`, { method: "POST" });
+    applyChannelsState(response, keepDrawer);
+  }
+
+  function renderChannels() {
+    if (!refs.channelsGrid) return;
+    refs.channelsGrid.innerHTML = "";
+    const rows = state.channels || [];
+    if (!rows.length) {
+      refs.channelsGrid.textContent = t("no_channels");
+      return;
+    }
+    rows.forEach((row) => {
+      const card = document.createElement("div");
+      card.className = "channel-card";
+      card.innerHTML = `
+        <div class="channel-head">
+          <div class="channel-badges">
+            <span class="channel-status ${channelStatusClass(row)}">${esc(channelStatusText(row))}</span>
+            <span class="channel-status ${channelRuntimeStatusClass(row)}">${esc(channelRuntimeStatusText(row))}</span>
+          </div>
+          <span class="channel-tag">${esc(channelDisplayName(row.name, row.display_name || row.name))}</span>
+        </div>
+        <h3 class="channel-title">${esc(channelDisplayName(row.name, row.display_name || row.name))}</h3>
+        <div class="channel-desc">${esc(row.description || "-")}</div>
+        <div class="channel-meta">${esc(summarizeChannel(row))}</div>
+        <div class="channel-meta">${esc(channelConfigDetail(row))}</div>
+        <div class="channel-meta">${esc(channelRuntimeDetail(row))}</div>
+      `;
+
+      const actions = document.createElement("div");
+      actions.className = "channel-actions";
+      actions.addEventListener("click", (event) => event.stopPropagation());
+      actions.appendChild(makeActionBtn(zhen("设置", "Settings"), async () => openChannelDrawer(row.name)));
+      if (row.managed) {
+        if (row.runtime?.running) {
+          actions.appendChild(makeActionBtn(zhen("停止", "Stop"), async () => stopChannel(row.name)));
+          actions.appendChild(makeActionBtn(zhen("重启", "Restart"), async () => restartChannel(row.name)));
+        } else {
+          actions.appendChild(
+            makeActionBtn(zhen("启动", "Start"), async () => startChannel(row.name), { disabled: !row.launchable }),
+          );
+        }
+      }
+      card.appendChild(actions);
+
+      card.addEventListener("click", () => openChannelDrawer(row.name));
+      refs.channelsGrid.appendChild(card);
+    });
+  }
+
+  function openChannelDrawer(channelName) {
+    if (!refs.channelDrawer) return;
+    const target = (state.channels || []).find((row) => row.name === channelName);
+    if (!target) return;
+    state.channelEditor = JSON.parse(JSON.stringify(target));
+    refs.channelEnabledInput.checked = Boolean(state.channelEditor.enabled);
+    refs.channelPrefixInput.value = String(state.channelEditor.bot_prefix || "");
+    refs.channelDrawerTitle.textContent = `${channelDisplayName(target.name, target.display_name || target.name)} ${zhen("设置", "Settings")}`;
+
+    refs.channelFields.innerHTML = "";
+    (state.channelEditor.fields || []).forEach((field) => {
+      const wrap = document.createElement("label");
+      wrap.className = "channel-field";
+      const requiredMark = field.required ? " *" : "";
+      const hint = field.secret && field.has_value ? zhen("已配置，留空不改", "configured, blank keeps current") : (field.placeholder || "");
+      const type = field.type === "number" ? "number" : (field.secret ? "password" : "text");
+      wrap.innerHTML = `
+        <span>${esc(channelFieldLabel(field.key))}${requiredMark}</span>
+        <input
+          type="${type}"
+          data-channel-key="${esc(field.key)}"
+          data-channel-secret="${field.secret ? "1" : "0"}"
+          value="${field.secret ? "" : esc(String(field.value || ""))}"
+          placeholder="${esc(hint)}"
+        />
+      `;
+      refs.channelFields.appendChild(wrap);
+    });
+
+    refs.channelDrawerHint.textContent = channelDrawerSummary(target);
+    refs.channelDrawer.classList.remove("hidden");
+  }
+
+  async function loadChannels() {
+    applyChannelsState(await api("/api/v1/channels"), false);
+  }
+
+  async function saveChannelConfig() {
+    if (!state.channelEditor || !refs.channelFields) return;
+    const settings = {};
+    refs.channelFields.querySelectorAll("input[data-channel-key]").forEach((input) => {
+      const key = input.getAttribute("data-channel-key");
+      const secret = input.getAttribute("data-channel-secret") === "1";
+      const text = String(input.value || "").trim();
+      if (!key) return;
+      if (secret && !text) return;
+      settings[key] = text;
+    });
+
+    const payload = {
+      enabled: refs.channelEnabledInput.checked,
+      bot_prefix: refs.channelPrefixInput.value.trim(),
+      settings,
+    };
+    const response = await api(`/api/v1/channels/${encodeURIComponent(state.channelEditor.name)}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    applyChannelsState(response, false);
+    closeChannelDrawer();
+  }
+
+  function makeActionBtn(label, fn, options = {}) {
     const btn = document.createElement("button");
     btn.className = "btn-ghost";
     btn.textContent = label;
+    btn.disabled = Boolean(options.disabled);
     btn.addEventListener("click", async () => {
+      if (btn.disabled) return;
       try {
         await fn();
       } catch (err) {
@@ -2545,6 +3481,7 @@
       renderCron();
       renderHeartbeat();
       renderSkills();
+      renderMcp();
       renderModels();
       renderBillingStatus();
       renderBillingOverview();
@@ -2616,6 +3553,20 @@
     refs.saveHeartbeatBtn.addEventListener("click", () => saveHeartbeat().catch((err) => alert(`${t("action_failed")}: ${err}`)));
     refs.runHeartbeatBtn.addEventListener("click", () => runHeartbeat().catch((err) => alert(`${t("action_failed")}: ${err}`)));
     refs.reloadSkillsBtn.addEventListener("click", () => loadSkills().catch((err) => alert(`${t("action_failed")}: ${err}`)));
+    if (refs.refreshMcpBtn) refs.refreshMcpBtn.addEventListener("click", () => loadMcp().catch((err) => alert(`${t("action_failed")}: ${err}`)));
+    if (refs.newLocalMcpBtn) refs.newLocalMcpBtn.addEventListener("click", () => openMcpModal({ mode: "local" }));
+    if (refs.newRemoteMcpBtn) refs.newRemoteMcpBtn.addEventListener("click", () => openMcpModal({ mode: "remote" }));
+    if (refs.closeMcpModalBtn) refs.closeMcpModalBtn.addEventListener("click", () => closeMcpModal());
+    if (refs.cancelMcpModalBtn) refs.cancelMcpModalBtn.addEventListener("click", () => closeMcpModal());
+    if (refs.saveMcpClientBtn) refs.saveMcpClientBtn.addEventListener("click", () => saveMcpClient().catch((err) => alert(`${t("action_failed")}: ${err}`)));
+    if (refs.mcpClientModeSelect) refs.mcpClientModeSelect.addEventListener("change", () => refreshMcpEditorUi());
+    if (refs.mcpClientServerSelect) refs.mcpClientServerSelect.addEventListener("change", () => refreshMcpEditorUi());
+    if (refs.mcpClientCommandInput) refs.mcpClientCommandInput.addEventListener("input", () => refreshMcpEditorUi());
+    if (refs.mcpModal) {
+      refs.mcpModal.addEventListener("click", (event) => {
+        if (event.target === refs.mcpModal) closeMcpModal();
+      });
+    }
     refs.reloadModelsBtn.addEventListener("click", () => loadModels().catch((err) => alert(`${t("action_failed")}: ${err}`)));
     refs.newModelBtn.addEventListener("click", () => openModelModal());
     refs.closeModelModalBtn.addEventListener("click", () => closeModelModal());
@@ -2668,6 +3619,10 @@
       }
       if (event.key === "Escape" && refs.billingDetailModal && !refs.billingDetailModal.classList.contains("hidden")) {
         closeBillingDetail();
+        return;
+      }
+      if (event.key === "Escape" && refs.mcpModal && !refs.mcpModal.classList.contains("hidden")) {
+        closeMcpModal();
         return;
       }
       if (event.key === "Escape" && !refs.modelModal.classList.contains("hidden")) {

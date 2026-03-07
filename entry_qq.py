@@ -14,6 +14,7 @@ from botpy.api import Route
 from botpy import logging
 from botpy.message import C2CMessage
 
+from angel_console.core.asyncio_compat import ensure_main_thread_event_loop
 from little_angel_bot import LittleAngelBot
 from llm_provider import validate_llm_config
 
@@ -75,10 +76,6 @@ def _get_secret(name: str, fallback: str = "") -> str:
     return "" if local is None else str(local)
 
 # === Optional local config (set and keep here for convenience) ===
-# Example: BRAVE_API_KEY = "your_brave_api_key"
-BRAVE_API_KEY = _get_secret("BRAVE_API_KEY", "")
-# Example: ZHIPU_API_KEY = "your_zhipu_api_key"
-ZHIPU_API_KEY = _get_secret("ZHIPU_API_KEY", "")
 # Example: LLM_API_KEY = "your_llm_api_key"
 LLM_API_KEY = _get_secret("LLM_API_KEY", "")
 # Example: LLM_BASE_URL = "https://api.openai.com/v1"
@@ -92,11 +89,7 @@ BOTPY_APPID = _get_secret("BOTPY_APPID", str(_QQ_CHANNEL_VALUES.get("app_id", ""
 # Example: BOTPY_SECRET = "your_bot_secret"
 BOTPY_SECRET = _get_secret("BOTPY_SECRET", str(_QQ_CHANNEL_VALUES.get("client_secret", "") or ""))
 
-# Push into env so tools can pick them up.
-if BRAVE_API_KEY and not os.getenv("BRAVE_API_KEY"):
-    os.environ["BRAVE_API_KEY"] = BRAVE_API_KEY
-if ZHIPU_API_KEY and not os.getenv("ZHIPU_API_KEY"):
-    os.environ["ZHIPU_API_KEY"] = ZHIPU_API_KEY
+# Push into env so model settings can pick them up.
 if LLM_API_KEY and not os.getenv("LLM_API_KEY"):
     os.environ["LLM_API_KEY"] = LLM_API_KEY
 if LLM_BASE_URL and not os.getenv("LLM_BASE_URL"):
@@ -483,6 +476,7 @@ def main() -> None:
     if not appid or not secret:
         print("需要先注册 QQ 开发平台并提供 APPID 与 Secret，否则无法使用。")
         return
+    ensure_main_thread_event_loop()
     intents = botpy.Intents(public_messages=True)
     client = MyClient(intents=intents)
     little_angel.set_system_handler(client.enqueue_system_message)

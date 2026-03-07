@@ -1,0 +1,13 @@
+client_id: system
+name: System Tools
+description: Local time, reminders, and user input tools.
+enabled: true
+mode: local
+transport: stdio
+server_id: system
+endpoint: ''
+enabled_tools: []
+env: {}
+headers: {}
+secret_refs: {}
+metadata: {}
