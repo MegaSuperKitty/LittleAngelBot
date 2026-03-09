@@ -30,6 +30,12 @@
   - Skills 管理
   - 模型配置与切换
   - 模型计费与调用审计（Token 统计）
+- **2026-03-07** 🔌 新增一整套 **MCP** 能力：
+  - 本地与远程 MCP Client 运行时
+  - 在 Web Console 中支持 MCP 的发现、配置与运行时管理
+- **2026-03-09** 🚪 围绕 **Web Console** 统一了项目启动入口：
+  - 新增 `entry_console.py` 作为推荐根入口
+  - 新增 `python -m angel_console` 包启动方式
 
 ## 核心亮点
 
@@ -81,6 +87,40 @@
 - 模型：配置多 Provider/Profile，并切换当前工作模型
 - 模型计费：查看调用量、Token 消耗、失败率与调用明细
 
+### 推荐启动方式
+
+现在推荐把 Web Console 作为项目主入口来启动：
+
+```powershell
+python entry_console.py
+```
+
+也支持包方式启动：
+
+```powershell
+python -m angel_console
+```
+
+启动后在浏览器打开 `http://127.0.0.1:7788`。
+
+推荐使用流程：先进入 Web Console，再在 `Channels` 页面管理 CLI / QQ / Discord。
+
+直接渠道脚本依然保留，适合高级或单渠道用法：
+
+```powershell
+python channels/cli.py
+python channels/qq.py
+python channels/discord.py
+```
+
+根目录下的旧入口也仍然可用：
+
+```powershell
+python entry_cli.py
+python entry_qq.py
+python entry_discord.py
+```
+
 ## 适用场景
 
 - 工作/学习资料的快速搜集与结构化整理
@@ -120,16 +160,54 @@ BOTPY_SECRET: ""
 
 ## 运行
 
+### Web Console（推荐）
+
+```powershell
+python entry_console.py
+```
+
+或：
+
+```powershell
+python -m angel_console
+```
+
+启动后打开 `http://127.0.0.1:7788`。
+
 ### CLI
 
 ```powershell
 python entry_cli.py
 ```
 
+直接渠道路径：
+
+```powershell
+python channels/cli.py
+```
+
 ### QQ 私聊
 
 ```powershell
 python entry_qq.py
+```
+
+直接渠道路径：
+
+```powershell
+python channels/qq.py
+```
+
+### Discord
+
+```powershell
+python entry_discord.py
+```
+
+直接渠道路径：
+
+```powershell
+python channels/discord.py
 ```
 
 ## 目录结构
@@ -139,6 +217,11 @@ python entry_qq.py
 - `little_angel_bot.py`：机器人核心逻辑
 - `tools/`：工具能力
 - `skills/`：Skills 能力集成
+
+为新的 Web Console 启动流补充的入口文件：
+
+- `entry_console.py`：浏览器控制台统一入口
+- `channels/`：CLI / QQ / Discord 的直接入口目录
 
 ## 开发与扩展
 

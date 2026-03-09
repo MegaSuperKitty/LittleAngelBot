@@ -197,73 +197,78 @@ async def lifespan(app: FastAPI):
         search_engine.stop()
 
 
-app = FastAPI(title="LittleAngel Console", version="1.0.0", lifespan=lifespan)
-
-# Local-only service by default; CORS kept permissive for local tooling.
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-
-@app.middleware("http")
-async def no_cache_static(request: Request, call_next):
-    response = await call_next(request)
-    path = request.url.path or ""
-    if path == "/" or path.startswith("/assets/") or path.startswith("/api/"):
-        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
-        response.headers["Pragma"] = "no-cache"
-        response.headers["Expires"] = "0"
-    return response
-
-app.include_router(sessions_router)
-app.include_router(chat_router)
-app.include_router(channels_router)
-app.include_router(files_router)
-app.include_router(cron_router)
-app.include_router(heartbeat_router)
-app.include_router(skills_router)
-app.include_router(mcp_router)
-app.include_router(models_router)
-app.include_router(search_router)
-app.include_router(billing_router)
-app.include_router(speech_router)
-
-
-@app.get("/api/v1/health")
-def health():
-    return {"success": True, "service": "littleangel-console"}
-
-
 WEB_DIR = HERE / "web"
 ASSETS_DIR = WEB_DIR / "assets"
 INDEX_HTML = WEB_DIR / "index.html"
 
-if ASSETS_DIR.exists():
-    app.mount("/assets", StaticFiles(directory=str(ASSETS_DIR)), name="assets")
+def create_app() -> FastAPI:
+    app = FastAPI(title="LittleAngel Console", version="1.0.0", lifespan=lifespan)
+
+    # Local-only service by default; CORS kept permissive for local tooling.
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
+    @app.middleware("http")
+    async def no_cache_static(request: Request, call_next):
+        response = await call_next(request)
+        path = request.url.path or ""
+        if path == "/" or path.startswith("/assets/") or path.startswith("/api/"):
+            response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+            response.headers["Pragma"] = "no-cache"
+            response.headers["Expires"] = "0"
+        return response
+
+    app.include_router(sessions_router)
+    app.include_router(chat_router)
+    app.include_router(channels_router)
+    app.include_router(files_router)
+    app.include_router(cron_router)
+    app.include_router(heartbeat_router)
+    app.include_router(skills_router)
+    app.include_router(mcp_router)
+    app.include_router(models_router)
+    app.include_router(search_router)
+    app.include_router(billing_router)
+    app.include_router(speech_router)
+
+    @app.get("/api/v1/health")
+    def health():
+        return {"success": True, "service": "littleangel-console"}
+
+    if ASSETS_DIR.exists():
+        app.mount("/assets", StaticFiles(directory=str(ASSETS_DIR)), name="assets")
+
+    @app.get("/")
+    def web_root():
+        if INDEX_HTML.exists():
+            return FileResponse(str(INDEX_HTML))
+        raise HTTPException(status_code=404, detail="index_not_found")
+
+    @app.get("/{full_path:path}")
+    def web_spa(full_path: str):
+        # Let API routes pass through.
+        if full_path.startswith("api/"):
+            raise HTTPException(status_code=404, detail="not_found")
+        if INDEX_HTML.exists():
+            return FileResponse(str(INDEX_HTML))
+        raise HTTPException(status_code=404, detail="index_not_found")
+
+    return app
 
 
-@app.get("/")
-def web_root():
-    if INDEX_HTML.exists():
-        return FileResponse(str(INDEX_HTML))
-    raise HTTPException(status_code=404, detail="index_not_found")
+def run_console(host: str = "127.0.0.1", port: int = 7788) -> None:
+    import uvicorn
+
+    uvicorn.run("angel_console.app:app", host=host, port=int(port), reload=False)
 
 
-@app.get("/{full_path:path}")
-def web_spa(full_path: str):
-    # Let API routes pass through.
-    if full_path.startswith("api/"):
-        raise HTTPException(status_code=404, detail="not_found")
-    if INDEX_HTML.exists():
-        return FileResponse(str(INDEX_HTML))
-    raise HTTPException(status_code=404, detail="index_not_found")
+app = create_app()
 
 
 if __name__ == "__main__":
-    import uvicorn
-
-    uvicorn.run("angel_console.app:app", host="127.0.0.1", port=7788, reload=False)
+    run_console()

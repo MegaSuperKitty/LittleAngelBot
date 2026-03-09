@@ -155,6 +155,7 @@ class ChannelService:
         resolved = self._resolve_config(spec, raw_row, self._local_secrets_cache)
         missing_required = self._missing_required(spec, resolved.settings)
         configured = len(missing_required) == 0
+        ready = (not resolved.enabled) or configured
         managed = spec.runtime_mode == "subprocess"
         runtime = self._runtime_view(spec)
         launch_command = self._launch_preview(spec, resolved.settings)
@@ -168,12 +169,14 @@ class ChannelService:
             "tag": spec.tag,
             "enabled": resolved.enabled,
             "configured": configured,
+            "ready": ready,
             "missing_required": missing_required,
             "bot_prefix": resolved.bot_prefix,
             "managed": managed,
             "runtime_mode": spec.runtime_mode,
             "launchable": launchable,
             "launch_command": launch_command,
+            "launch_hint": launch_command,
             "fields": fields,
             "runtime": runtime,
         }
@@ -274,7 +277,9 @@ class ChannelService:
         if spec.runtime_mode == "self":
             host = str(settings.get("bind_host", "127.0.0.1") or "127.0.0.1").strip() or "127.0.0.1"
             port = str(settings.get("port", "7788") or "7788").strip() or "7788"
-            return f"uvicorn angel_console.app:app --host {host} --port {port}"
+            python_bin = sys.executable or "python"
+            entry_path = self.project_root / "entry_console.py"
+            return self._format_command([python_bin, str(entry_path), "--host", host, "--port", port])
         if spec.runtime_mode == "manual":
             command = str(settings.get("command", "") or "").strip()
             return command

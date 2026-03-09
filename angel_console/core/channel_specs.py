@@ -59,12 +59,12 @@ def default_channel_specs() -> Dict[str, ChannelSpec]:
             runtime_mode="manual",
             default_enabled=True,
             default_settings={
-                "command": ".\\.venv\\Scripts\\python.exe entry_cli.py",
+                "command": ".\\.venv\\Scripts\\python.exe channels\\cli.py",
             },
             fields=(
                 ChannelFieldSpec(
                     key="command",
-                    placeholder=".\\.venv\\Scripts\\python.exe entry_cli.py",
+                    placeholder=".\\.venv\\Scripts\\python.exe channels\\cli.py",
                 ),
             ),
         ),
@@ -95,7 +95,7 @@ def default_channel_specs() -> Dict[str, ChannelSpec]:
                     env_keys=("BOTPY_SECRET",),
                 ),
             ),
-            entry_script="entry_qq.py",
+            entry_script="channels/qq.py",
         ),
         "discord": ChannelSpec(
             name="discord",
@@ -137,7 +137,7 @@ def default_channel_specs() -> Dict[str, ChannelSpec]:
                     env_keys=("DISCORD_GUILD_ID",),
                 ),
             ),
-            entry_script="entry_discord.py",
+            entry_script="channels/discord.py",
         ),
     }
 
