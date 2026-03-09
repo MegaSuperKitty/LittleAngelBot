@@ -32,6 +32,12 @@ LittleAngelBot can also be accessed via a CLI, and can be customized to integrat
   - Skills management
   - Model configuration and switching
   - Model billing and call audit (token statistics)
+- **2026-03-07** 🔌 Added an integrated **MCP** stack:
+  - Local and remote MCP client runtime
+  - Web Console MCP discovery, configuration, and runtime management
+- **2026-03-09** 🚪 Unified the project startup flow around the **Web Console**:
+  - Added `entry_console.py` as the recommended root entrypoint
+  - Added `python -m angel_console` package startup
 
 ## Core Highlights
 
@@ -85,6 +91,40 @@ Main modules:
 - Models: configure multiple providers/profiles and switch active runtime model
 - Model Billing: inspect call volume, token usage, failure rate, and call-level details
 
+### Recommended Startup
+
+The Web Console is now the recommended primary entrypoint for the project.
+
+```powershell
+python entry_console.py
+```
+
+Alternative package-style startup:
+
+```powershell
+python -m angel_console
+```
+
+Then open `http://127.0.0.1:7788` in your browser.
+
+Recommended workflow: start from the Web Console first, then use the `Channels` page to manage CLI / QQ / Discord.
+
+Direct channel scripts are still supported for advanced use:
+
+```powershell
+python channels/cli.py
+python channels/qq.py
+python channels/discord.py
+```
+
+Legacy compatibility wrappers are also still available:
+
+```powershell
+python entry_cli.py
+python entry_qq.py
+python entry_discord.py
+```
+
 ## Use Cases
 
 You can direct the agent anytime, anywhere (on the subway, while traveling, or on your bed):
@@ -126,16 +166,54 @@ Note: Get the QQ bot `APPID` and `SECRET` by registering on Tencent QQ Open Plat
 
 ## Run
 
+### Web Console (Recommended)
+
+```powershell
+python entry_console.py
+```
+
+Or:
+
+```powershell
+python -m angel_console
+```
+
+Open `http://127.0.0.1:7788` after startup.
+
 ### CLI
 
 ```powershell
 python entry_cli.py
 ```
 
+Direct channel path:
+
+```powershell
+python channels/cli.py
+```
+
 ### QQ Direct Message
 
 ```powershell
 python entry_qq.py
+```
+
+Direct channel path:
+
+```powershell
+python channels/qq.py
+```
+
+### Discord
+
+```powershell
+python entry_discord.py
+```
+
+Direct channel path:
+
+```powershell
+python channels/discord.py
 ```
 
 ## Project Structure
@@ -145,6 +223,11 @@ python entry_qq.py
 - `little_angel_bot.py`: core bot logic
 - `tools/`: tool capabilities
 - `skills/`: Skills integration
+
+Additional entrypoint files introduced for the Web Console workflow:
+
+- `entry_console.py`: unified root entry for the browser console
+- `channels/`: direct channel entrypoints for CLI / QQ / Discord
 
 ## Development and Extension
 
