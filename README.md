@@ -1,7 +1,7 @@
 ![LittleAngelBot Logo](docs/logo.png)
 
 <div align="center">
-  <h1>LittleAngelBot: A Personal Assistant Powered by Mobile QQ and Windows PC Collaboration</h1>
+  <h1>WeClaw: A Personal Assistant Powered by Mobile QQ and Windows PC Collaboration</h1>
   <p>
     <img src="https://img.shields.io/badge/python-≥3.11-blue" alt="Python">
     <img src="https://img.shields.io/badge/license-MIT-green" alt="License">
@@ -12,7 +12,7 @@
 
 A cross-platform personal assistant agent inspired by OpenClaw, designed for Windows PCs. It bridges mobile QQ and Windows capabilities so users can use natural language to plan and execute tasks end-to-end across devices.
 
-LittleAngelBot can also be accessed via a CLI, and can be customized to integrate with platforms such as WhatsApp, Discord, Telegram, and more.
+WeClaw can also be accessed via a CLI, and can be customized to integrate with platforms such as WhatsApp, Discord, Telegram, and more.
 
 ## GUI Preview
 
@@ -22,7 +22,7 @@ LittleAngelBot can also be accessed via a CLI, and can be customized to integrat
 
 ## Timeline
 
-- **2026-02-03** 🎉 LittleAngelBot is now open source.
+- **2026-02-03** 🎉 WeClaw is now open source.
 - **2026-02-23** 🖥️ Added a graphical **Agent Console** (`angel_console/`) for unified operations:
   - Chat (SSE streaming + ReAct trace)
   - Voice input (browser recording + local transcription)
