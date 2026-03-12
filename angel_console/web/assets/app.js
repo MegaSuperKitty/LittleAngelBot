@@ -2006,10 +2006,16 @@
     rows.forEach((skill) => {
       const card = document.createElement("div");
       card.className = "skill-card";
+      const skillPath = skill.path || "-";
+      const skillName = skill.name || skill.directory || "";
+      const skillDesc = skill.description || "-";
       card.innerHTML = `
-        <div class="skill-head"><h3 class="skill-title">${esc(skill.name || skill.directory || "")}</h3></div>
-        <div class="skill-body">${esc(skill.description || "-")}</div>
-        <div class="skill-path"><b>${t("skill_path")}:</b> ${esc(skill.path || "-")}</div>
+        <div class="skill-head">
+          <h3 class="skill-title" title="${esc(skillName)}">${esc(skillName)}</h3>
+          ${skill.authorized ? `<span class="skill-tag">${t("provider_authorized")}</span>` : ""}
+        </div>
+        <div class="skill-body" title="${esc(skillDesc)}">${esc(skillDesc)}</div>
+        <div class="skill-path" title="${esc(skillPath)}"><b>${t("skill_path")}:</b> ${esc(skillPath)}</div>
       `;
       refs.skillsGrid.appendChild(card);
     });

@@ -14,6 +14,7 @@
   --warn: #ffd973;
   --danger: #ff849a;
   --shadow: 0 20px 42px rgba(0, 0, 0, 0.46);
+  --card-grid-min-width: 280px;
 }
 
 * {
@@ -1089,7 +1090,13 @@ body::before {
   overflow: auto;
   display: grid;
   gap: 10px;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+}
+
+.fixed-card-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(var(--card-grid-min-width), 1fr));
+  align-items: start;
 }
 
 .skill-card {
@@ -1099,6 +1106,15 @@ body::before {
   padding: 12px;
   display: grid;
   gap: 8px;
+  min-width: 0;
+  max-height: 280px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.skill-card:hover {
+  border-color: rgba(103, 255, 218, 0.28);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  transform: translateY(-2px);
 }
 
 .skill-head {
@@ -1106,12 +1122,17 @@ body::before {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 .skill-title {
   margin: 0;
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
 }
 
 .skill-tag {
@@ -1121,12 +1142,18 @@ body::before {
   font-size: 11px;
   color: var(--accent);
   background: rgba(103, 255, 218, 0.08);
+  flex-shrink: 0;
 }
 
 .skill-body {
   font-size: 13px;
   color: var(--text-soft);
   line-height: 1.45;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  max-height: 76px;
 }
 
 .skill-path {
@@ -1134,7 +1161,10 @@ body::before {
   padding-top: 8px;
   font-size: 11px;
   color: #7db5a7;
-  word-break: break-all;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: help;
 }
 
 .compact-head {
@@ -1320,7 +1350,6 @@ body::before {
 
 .profiles-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
   gap: 10px;
   padding: 10px;
   align-items: start;
