@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""机器人入口：LittleAngelBot。"""
+"""机器人入口：WeClaw。"""
 import asyncio
 from collections import deque
 import json
@@ -30,7 +30,7 @@ from channels.common import (
     load_local_secrets,
 )
 from angel_console.core.asyncio_compat import ensure_main_thread_event_loop
-from little_angel_bot import LittleAngelBot
+from we_claw_bot import WeClawBot
 from llm_provider import validate_llm_config
 
 _LOG = logging.get_logger()
@@ -78,7 +78,7 @@ if BOTPY_SECRET and not os.getenv("BOTPY_SECRET"):
     os.environ["BOTPY_SECRET"] = BOTPY_SECRET
 
 # 机器人核心
-little_angel = LittleAngelBot(str(HISTORY_DIR), max_rounds=20, max_steps=20, agent_root=str(AGENT_ROOT))
+we_claw = WeClawBot(str(HISTORY_DIR), max_rounds=20, max_steps=20, agent_root=str(AGENT_ROOT))
 
 
 def _escape_for_qq(text: str) -> str:
@@ -245,9 +245,9 @@ class MyClient(botpy.Client):
 
         reply_text = None
         try:
-            reply_text = await asyncio.to_thread(little_angel.run_task, user_id, content, is_cancelled)
+            reply_text = await asyncio.to_thread(we_claw.run_task, user_id, content, is_cancelled)
         finally:
-            little_angel.clear_ask_handler(user_id)
+            we_claw.clear_ask_handler(user_id)
 
         try:
             if reply_text:
@@ -285,12 +285,12 @@ class MyClient(botpy.Client):
                 loop,
             )
 
-        little_angel.set_ask_handler(user_id, ask_handler)
+        we_claw.set_ask_handler(user_id, ask_handler)
         reply_text = None
         try:
-            reply_text = await asyncio.to_thread(little_angel.run_task, user_id, content, is_cancelled)
+            reply_text = await asyncio.to_thread(we_claw.run_task, user_id, content, is_cancelled)
         finally:
-            little_angel.clear_ask_handler(user_id)
+            we_claw.clear_ask_handler(user_id)
 
         if reply_text:
             await self._send(api, user_id, msg_id, reply_text, msg_seq=state.next_seq())
@@ -384,10 +384,10 @@ class MyClient(botpy.Client):
             return
 
         if running:
-            if little_angel.has_pending_human(user_id):
+            if we_claw.has_pending_human(user_id):
                 if content == "停止任务":
                     state.cancel_requested = True
-                    little_angel.cancel_pending_human(user_id)
+                    we_claw.cancel_pending_human(user_id)
                     await self._send(
                         message._api,
                         user_id,
@@ -396,11 +396,11 @@ class MyClient(botpy.Client):
                         msg_seq=next_seq(),
                     )
                 else:
-                    little_angel.provide_human_input(user_id, content)
+                    we_claw.provide_human_input(user_id, content)
                 return
             if content == "停止任务":
                 state.cancel_requested = True
-                little_angel.cancel_pending_human(user_id)
+                we_claw.cancel_pending_human(user_id)
                 await self._send(
                     message._api,
                     user_id,
@@ -432,7 +432,7 @@ class MyClient(botpy.Client):
                 loop,
             )
 
-        little_angel.set_ask_handler(user_id, ask_handler)
+        we_claw.set_ask_handler(user_id, ask_handler)
         state.running_task = asyncio.create_task(
             self._run_task(user_id, content, message._api, message.id, state)
         )
@@ -453,7 +453,7 @@ def main() -> None:
     ensure_main_thread_event_loop()
     intents = botpy.Intents(public_messages=True)
     client = MyClient(intents=intents)
-    little_angel.set_system_handler(client.enqueue_system_message)
+    we_claw.set_system_handler(client.enqueue_system_message)
     client.run(appid=appid, secret=secret)
 
 

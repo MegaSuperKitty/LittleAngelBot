@@ -89,10 +89,10 @@ class MCPClientManager:
                 merged_env = self._merged_env(config.env, resolved, include_os=True)
                 project_root = str(getattr(target, "project_root", "") or "").strip()
                 if project_root:
-                    merged_env.setdefault("LITTLE_ANGEL_PROJECT_ROOT", project_root)
+                    merged_env.setdefault("WE_CLAW_PROJECT_ROOT", project_root)
                 agent_root = str(getattr(target, "agent_root", "") or "").strip()
                 if agent_root:
-                    merged_env.setdefault("LITTLE_ANGEL_AGENT_ROOT", agent_root)
+                    merged_env.setdefault("WE_CLAW_AGENT_ROOT", agent_root)
                 return build_local_stdio_tools(config, merged_env)
             self._apply_env(config.env, resolved)
             server = get_server(config.server_id)

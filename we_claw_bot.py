@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""LittleAngelBot: compose ReAct/ReCAP, context, session manager, and tools."""
+"""WeClaw: compose ReAct/ReCAP, context, session manager, and tools."""
 
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ from mcp.local_tools.sub_agent_tool import SubAgentTool
 from mcp.local_tools.thinking_tool import ThinkingTool
 
 
-class LittleAngelBot:
+class WeClawBot:
     """Unified chatbot entry class."""
 
     def __init__(
@@ -189,8 +189,8 @@ class LittleAngelBot:
 
     def _default_system_prompt(self) -> str:
         return (
-            "# LittleAngelBot System Prompt\n\n"
-            "你是 LittleAngelBot，一个工具优先的助手。"
+            "# WeClaw System Prompt\n\n"
+            "你是 WeClaw，一个工具优先的助手。"
             "当任务需要事实或执行动作时，优先调用工具。\n\n"
             "关键规则：\n"
             "- 工具优先，结果可验证。\n"
@@ -275,7 +275,7 @@ class LittleAngelBot:
         self.ask_human_manager.cancel(user_id)
 
     def _load_config(self) -> dict:
-        config_path = os.getenv("LITTLE_ANGEL_CONFIG")
+        config_path = os.getenv("WE_CLAW_CONFIG")
         if not config_path:
             default_path = os.path.join(os.path.dirname(__file__), "bot_config.json")
             config_path = default_path if os.path.exists(default_path) else None

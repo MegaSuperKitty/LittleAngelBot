@@ -1,7 +1,7 @@
-![LittleAngelBot Logo](docs/logo.png)
+![WeClaw Logo](docs/logo.png)
 
 <div align="center">
-  <h1>LittleAngelBot：手机 与 Windows 协同的个人助手</h1>
+  <h1>WeClaw：手机 与 Windows 协同的个人助手</h1>
   <p>
     <img src="https://img.shields.io/badge/python-%E2%89%A53.11-blue" alt="Python">
     <img src="https://img.shields.io/badge/license-MIT-green" alt="License">
@@ -15,7 +15,7 @@
 ## GUI 界面预览
 
 <div align="center">
-  <img src="docs/GUI.png" alt="LittleAngel Agent 控制台界面" width="1100" />
+  <img src="docs/GUI.png" alt="WeClaw Agent 控制台界面" width="1100" />
 </div>
 
 ## 时间线
@@ -140,7 +140,7 @@ python entry_discord.py
 - `ZHIPU_API_KEY`（可选，用于网页搜索）
 - `BOTPY_APPID`（必填，QQ 入口需要）
 - `BOTPY_SECRET`（必填，QQ 入口需要）
-- `LITTLE_ANGEL_AGENT_WORKSPACE`（可选，Agent 工作目录）
+- `WE_CLAW_AGENT_WORKSPACE`（可选，Agent 工作目录）
 
 ### 本地密钥文件
 
@@ -214,7 +214,7 @@ python channels/discord.py
 
 - `entry_qq.py`：QQ 私聊入口
 - `entry_cli.py`：CLI 入口
-- `little_angel_bot.py`：机器人核心逻辑
+- `we_claw_bot.py`：机器人核心逻辑
 - `tools/`：工具能力
 - `skills/`：Skills 能力集成
 

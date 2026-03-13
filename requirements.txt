@@ -23,6 +23,11 @@ python-multipart>=0.0.9,<1
 croniter>=2,<7
 
 # -----------------------------
+# Desktop app (optional)
+# -----------------------------
+pywebview>=5.0,<6
+
+# -----------------------------
 # Document / report generation
 # -----------------------------
 python-pptx>=1.0,<2

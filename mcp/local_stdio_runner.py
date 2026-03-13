@@ -30,7 +30,7 @@ class _RunnerTarget:
 
 
 def _parse_args(argv: List[str]) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="LittleAngel built-in local MCP stdio runner")
+    parser = argparse.ArgumentParser(description="WeClaw built-in local MCP stdio runner")
     parser.add_argument("--server-id", required=True, help="Built-in local server id")
     parser.add_argument("--project-root", default="", help="Project root path")
     parser.add_argument("--agent-root", default="", help="Agent root path")
@@ -40,12 +40,12 @@ def _parse_args(argv: List[str]) -> argparse.Namespace:
 def _resolve_paths(args: argparse.Namespace) -> tuple[str, str]:
     project_root = (
         str(args.project_root or "").strip()
-        or str(os.getenv("LITTLE_ANGEL_PROJECT_ROOT", "")).strip()
+        or str(os.getenv("WE_CLAW_PROJECT_ROOT", "")).strip()
         or os.getcwd()
     )
     agent_root = (
         str(args.agent_root or "").strip()
-        or str(os.getenv("LITTLE_ANGEL_AGENT_ROOT", "")).strip()
+        or str(os.getenv("WE_CLAW_AGENT_ROOT", "")).strip()
         or os.path.join(project_root, "agent_workspace")
     )
     return os.path.abspath(project_root), os.path.abspath(agent_root)

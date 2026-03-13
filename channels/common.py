@@ -24,7 +24,7 @@ CHANNEL_CONFIG_PATH = (PROJECT_ROOT / "angel_console" / "data" / "channels.json"
 
 
 def resolve_agent_root() -> Path:
-    env_root = os.getenv("LITTLE_ANGEL_AGENT_WORKSPACE", "").strip()
+    env_root = os.getenv("WE_CLAW_AGENT_WORKSPACE", "").strip()
     if env_root:
         return Path(env_root).expanduser().resolve()
     return (PROJECT_ROOT / "agent_workspace").resolve()

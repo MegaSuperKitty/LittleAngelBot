@@ -121,7 +121,7 @@ _apply_local_secrets_to_env()
 
 
 def _resolve_agent_root() -> str:
-    env_root = os.getenv("LITTLE_ANGEL_AGENT_WORKSPACE", "").strip()
+    env_root = os.getenv("WE_CLAW_AGENT_WORKSPACE", "").strip()
     if env_root:
         return str(Path(env_root).resolve())
     return str((PROJECT_ROOT / "agent_workspace").resolve())

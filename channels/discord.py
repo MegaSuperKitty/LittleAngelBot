@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Discord entry for LittleAngelBot."""
+"""Discord entry for WeClaw."""
 
 from __future__ import annotations
 
@@ -25,7 +25,7 @@ from channels.common import (
     load_local_secrets,
 )
 
-from little_angel_bot import LittleAngelBot
+from we_claw_bot import WeClawBot
 from llm_provider import validate_llm_config
 
 try:
@@ -83,7 +83,7 @@ for key, value in [
         os.environ[key] = value
 
 
-little_angel = LittleAngelBot(str(HISTORY_DIR), max_rounds=20, max_steps=20, agent_root=str(AGENT_ROOT))
+we_claw = WeClawBot(str(HISTORY_DIR), max_rounds=20, max_steps=20, agent_root=str(AGENT_ROOT))
 
 
 class _TaskState:
@@ -96,7 +96,7 @@ class _TaskState:
 class DiscordAngelClient(discord.Client):  # type: ignore[misc]
     def __init__(
         self,
-        bot: LittleAngelBot,
+        bot: WeClawBot,
         bot_prefix: str,
         allowed_guild_id: Optional[int],
         proxy: str,
@@ -287,14 +287,14 @@ def main() -> None:
     intents.message_content = True
 
     client = DiscordAngelClient(
-        bot=little_angel,
+        bot=we_claw,
         bot_prefix=DISCORD_BOT_PREFIX,
         allowed_guild_id=_parse_optional_int(os.getenv("DISCORD_GUILD_ID", "").strip() or DISCORD_GUILD_ID),
         proxy=os.getenv("DISCORD_HTTP_PROXY", "").strip() or DISCORD_HTTP_PROXY,
         proxy_auth_text=os.getenv("DISCORD_HTTP_PROXY_AUTH", "").strip() or DISCORD_HTTP_PROXY_AUTH,
         intents=intents,
     )
-    little_angel.set_system_handler(client.enqueue_system_message)
+    we_claw.set_system_handler(client.enqueue_system_message)
     client.run(token)
 
 

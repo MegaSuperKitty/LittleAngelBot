@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Unified console entry point for LittleAngelBot."""
+"""Unified console entry point for WeClaw."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ DEFAULT_PORT = 7788
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Start the LittleAngel web console.")
+    parser = argparse.ArgumentParser(description="Start the WeClaw web console.")
     parser.add_argument("--host", default=DEFAULT_HOST, help="Bind host for the web console.")
     parser.add_argument("--port", type=int, default=DEFAULT_PORT, help="Bind port for the web console.")
     return parser

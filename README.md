@@ -1,4 +1,4 @@
-![LittleAngelBot Logo](docs/logo.png)
+![WeClaw Logo](docs/logo.png)
 
 <div align="center">
   <h1>WeClaw: A Personal Assistant Powered by Mobile QQ and Windows PC Collaboration</h1>
@@ -17,7 +17,7 @@ WeClaw can also be accessed via a CLI, and can be customized to integrate with p
 ## GUI Preview
 
 <div align="center">
-  <img src="docs/GUI.png" alt="LittleAngel Agent Console GUI" width="1100" />
+  <img src="docs/GUI.png" alt="WeClaw Agent Console GUI" width="1100" />
 </div>
 
 ## Timeline
@@ -146,7 +146,7 @@ Environment variables:
 - `ZHIPU_API_KEY` (optional, for web search)
 - `BOTPY_APPID` (required, for QQ entry)
 - `BOTPY_SECRET` (required, for QQ entry)
-- `LITTLE_ANGEL_AGENT_WORKSPACE` (optional, workspace path for the agent)
+- `WE_CLAW_AGENT_WORKSPACE` (optional, workspace path for the agent)
 
 ### Local Secrets File
 
@@ -220,7 +220,7 @@ python channels/discord.py
 
 - `entry_qq.py`: QQ direct message entry
 - `entry_cli.py`: CLI entry
-- `little_angel_bot.py`: core bot logic
+- `we_claw_bot.py`: core bot logic
 - `tools/`: tool capabilities
 - `skills/`: Skills integration
 

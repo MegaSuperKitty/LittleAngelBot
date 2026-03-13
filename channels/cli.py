@@ -1,5 +1,5 @@
 ﻿# -*- coding: utf-8 -*-
-"""CLI entry point for LittleAngelBot local debugging."""
+"""CLI entry point for WeClaw local debugging."""
 
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from channels.common import AGENT_ROOT, HISTORY_DIR, LOCAL_SECRETS_PATH, load_local_secrets
 
-from little_angel_bot import LittleAngelBot
+from we_claw_bot import WeClawBot
 from llm_provider import validate_llm_config
 
 
@@ -106,11 +106,11 @@ class _DebugState:
         return current
 
 
-async def _run_task(bot: LittleAngelBot, user_id: str, content: str, state: _DebugState) -> None:
+async def _run_task(bot: WeClawBot, user_id: str, content: str, state: _DebugState) -> None:
     """Execute one bot task and print final output to CLI.
-    
+
     Args:
-        bot (LittleAngelBot): Input value for bot.
+        bot (WeClawBot): Input value for bot.
         user_id (str): Identifier for the user.
         content (str): Text content to process.
         state (_DebugState): Input value for state.
@@ -155,11 +155,11 @@ async def main_async() -> None:
     Returns:
         None: This method does not return a value.
     """
-    bot = LittleAngelBot(str(HISTORY_DIR), max_rounds=20, max_steps=20, agent_root=str(AGENT_ROOT))
+    bot = WeClawBot(str(HISTORY_DIR), max_rounds=20, max_steps=20, agent_root=str(AGENT_ROOT))
     user_id = "debug_user"
     state = _DebugState()
 
-    print("LittleAngelBot CLI (type /quit to exit)")
+    print("WeClaw CLI (type /quit to exit)")
     print(f"Agent root: {AGENT_ROOT}")
 
     while True:

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Session routing for LittleAngelBot.
+"""Session routing for WeClaw.
 
 This module manages:
 - Per-user current session pointer.

@@ -1,6 +1,6 @@
 # LittleAngel Console
 
-Browser-based management console for LittleAngelBot.
+Browser-based management console for WeClaw.
 
 ## Start
 

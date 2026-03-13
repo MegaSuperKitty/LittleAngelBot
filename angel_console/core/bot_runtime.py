@@ -1,5 +1,5 @@
 ﻿# -*- coding: utf-8 -*-
-"""Runtime adapter for LittleAngelBot with SSE-friendly event streaming."""
+"""Runtime adapter for WeClaw with SSE-friendly event streaming."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ import time
 from typing import Any, Dict, List, Optional
 import uuid
 
-from little_angel_bot import LittleAngelBot
+from we_claw_bot import WeClawBot
 from mcp import MCPClientConfig
 
 from .file_ingest import FileIngestStore
@@ -49,7 +49,7 @@ class BotRuntime:
         os.makedirs(self.history_dir, exist_ok=True)
         os.makedirs(self.agent_root, exist_ok=True)
 
-        self.bot = LittleAngelBot(
+        self.bot = WeClawBot(
             history_dir=self.history_dir,
             max_rounds=max_rounds,
             max_steps=max_steps,
